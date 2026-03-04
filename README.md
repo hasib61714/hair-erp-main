@@ -21,6 +21,177 @@ Mahin Enterprise ERP is a full-featured enterprise resource planning system buil
 | State & Data | TanStack Query (React Query) |
 | Forms | React Hook Form + Zod |
 | Charts | Recharts |
+| Database | Supabase (PostgreSQL) |
+| Auth | Supabase Auth |
+| Mobile | Capacitor (Android/iOS) |
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) v18 or higher
+- [npm](https://www.npmjs.com/) v9 or higher
+- A [Supabase](https://supabase.com/) project (free tier works)
+
+### Installation
+
+```sh
+# 1. Clone the repository
+git clone <YOUR_GIT_URL>
+cd <YOUR_PROJECT_NAME>
+
+# 2. Install dependencies
+npm install
+
+# 3. Create environment file
+cp .env.example .env
+
+# 4. Fill in your Supabase credentials in .env (see Environment Variables below)
+
+# 5. Start the development server
+npm run dev
+```
+
+App will run at: `http://localhost:8080`
+
+---
+
+## Environment Variables
+
+Create a `.env` file in the project root (copy from `.env.example`):
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your_publishable_key_here
+VITE_SUPABASE_PROJECT_ID=your_project_id_here
+```
+
+You can find these values in your Supabase project → **Settings → API**.
+
+---
+
+## Database Setup (Supabase)
+
+### Step 1 — Create a Supabase project
+
+1. Go to [supabase.com](https://supabase.com) and create a new project
+2. Copy your **Project URL** and **Publishable Key** into `.env`
+
+### Step 2 — Run the schema
+
+1. Open your Supabase project → **SQL Editor**
+2. Copy the contents of `schema.sql` (in the project root)
+3. Paste and run it in the SQL Editor
+
+This will create all required tables, RLS policies, roles, and triggers automatically.
+
+### Step 3 — Create admin user
+
+Run the following in Supabase SQL Editor after schema is applied:
+
+```sql
+-- Confirm admin email
+UPDATE auth.users
+SET email_confirmed_at = now(), confirmed_at = now()
+WHERE email = 'your-admin@email.com';
+
+-- Set admin role
+UPDATE public.user_roles
+SET role = 'admin'
+WHERE user_id = (SELECT id FROM auth.users WHERE email = 'your-admin@email.com');
+```
+
+---
+
+## Available Scripts
+
+```sh
+npm run dev        # Start development server (port 8080)
+npm run build      # Build for production
+npm run preview    # Preview production build
+npm run lint       # Run ESLint
+npm run test       # Run tests
+```
+
+---
+
+## Project Structure
+
+```
+src/
+├── components/        # UI components & feature modules
+│   ├── modules/       # Feature modules (Challan, Inventory, etc.)
+│   └── ui/            # shadcn-ui base components
+├── contexts/          # React contexts (Auth, Theme, Language)
+├── hooks/             # Custom React hooks
+├── integrations/      # Supabase client integration
+├── lib/               # Utilities
+└── pages/             # Route pages
+supabase/
+├── migrations/        # Database migration files
+└── functions/         # Edge functions
+schema.sql             # Full database schema (run in Supabase SQL Editor)
+```
+
+---
+
+## User Roles
+
+| Role | Access |
+|---|---|
+| `admin` | Full access to all modules + user management |
+| `factory_manager` | Production, inventory, challans, transfers |
+| `accountant` | Transactions, ledger, reports, sales |
+
+---
+
+## Deployment
+
+Build the project and deploy the `dist/` folder to any static host:
+
+```sh
+npm run build
+# Deploy the dist/ folder to Netlify, Vercel, or any static host
+```
+
+**Required environment variables on your hosting platform:**
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+
+---
+
+## Developer
+
+**Md. Hasibul Hasan**
+Full Stack Developer
+
+---
+
+## License
+
+This project is proprietary software developed for **Mahin Enterprise**.
+All rights reserved © 2026.
+
+
+---
+
+## Overview
+
+Mahin Enterprise ERP is a full-featured enterprise resource planning system built for managing multi-factory hair processing and trading operations. It supports role-based access, factory production tracking, inventory management, supplier/buyer ledger, challans, booking slips, and more.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18, TypeScript, Vite |
+| UI Library | shadcn-ui, Tailwind CSS |
+| State & Data | TanStack Query (React Query) |
+| Forms | React Hook Form + Zod |
+| Charts | Recharts |
 | Database | MySQL (via Node.js/Express backend) |
 | Auth | JWT / Session-based |
 | Mobile | Capacitor (Android/iOS) |
