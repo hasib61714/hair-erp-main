@@ -48,6 +48,7 @@ const NotificationBell = ({ onNavigate }: NotificationBellProps) => {
 
   useEffect(() => {
     fetchNotifications();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Realtime subscription

@@ -106,6 +106,7 @@ const InventoryModule = () => {
       map.set(fId, existing);
     });
     return Array.from(map.entries());
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, factories]);
 
   const inputClass = "w-full h-8 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground";

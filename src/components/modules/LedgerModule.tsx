@@ -92,6 +92,7 @@ const LedgerModule = () => {
 
     setReceivables(Array.from(recvMap.values()).sort((a, b) => b.amount - a.amount));
     setPayables(Array.from(payMap.values()).sort((a, b) => b.amount - a.amount));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawSales, rawChallans, rawPurchases, rawParties, startDate, endDate]);
 
   // Fetch detail for a person
