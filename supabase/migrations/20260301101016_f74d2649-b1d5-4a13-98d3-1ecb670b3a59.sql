@@ -1,0 +1,1 @@
+ALTER TABLE public.guti_stock ADD COLUMN IF NOT EXISTS grade_details jsonb NOT NULL DEFAULT '[]'::jsonb;

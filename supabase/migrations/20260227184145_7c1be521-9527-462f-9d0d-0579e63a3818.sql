@@ -1,0 +1,1 @@
+ALTER TABLE public.sales ADD COLUMN product_type text NOT NULL DEFAULT 'two_by_two';

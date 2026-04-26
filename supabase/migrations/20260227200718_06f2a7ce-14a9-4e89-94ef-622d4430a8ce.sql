@@ -1,0 +1,1 @@
+ALTER TABLE public.twobytwo_entries ADD COLUMN guti_cost_per_kg numeric DEFAULT 0;
