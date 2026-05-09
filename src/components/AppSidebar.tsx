@@ -2,7 +2,8 @@ import {
   LayoutDashboard, Package, Factory, ArrowRightLeft, Layers, 
   BarChart3, Users, Wallet, FileText, TrendingUp, Settings,
   ChevronLeft, ChevronRight, Scissors, Globe, LogOut, Sun, Moon,
-  BookOpen, StickyNote, DollarSign, CalendarDays, CreditCard, Truck, Shield
+  BookOpen, StickyNote, DollarSign, CalendarDays, CreditCard, Truck, Shield,
+  User, KeyRound, Eye, EyeOff, X, Loader2
 } from "lucide-react";
 import { ClipboardList } from "lucide-react";
 import { useState } from "react";
@@ -12,6 +13,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getModulesForRole } from "@/lib/roleAccess";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const allMenuItems = [
   { icon: LayoutDashboard, labelKey: "dashboard" as const, id: "dashboard" },
@@ -54,9 +57,28 @@ interface AppSidebarProps {
 const AppSidebar = ({ activeModule, onModuleChange, onClose }: AppSidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const { t, lang, setLang } = useLanguage();
-  const { role, signOut } = useAuth();
+  const { user, role, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { settings } = useCompanySettings();
+
+  const [showProfile, setShowProfile] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [pwLoading, setPwLoading] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 6) { toast.error("পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে"); return; }
+    if (newPassword !== confirmPassword) { toast.error("পাসওয়ার্ড মিলছে না"); return; }
+    setPwLoading(true);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setPwLoading(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("পাসওয়ার্ড পরিবর্তন হয়েছে");
+    setNewPassword(""); setConfirmPassword(""); setShowProfile(false);
+  };
 
   const allowedModules = getModulesForRole(role);
   const menuItems = allMenuItems.filter((item) => allowedModules.includes(item.id));
@@ -67,6 +89,7 @@ const AppSidebar = ({ activeModule, onModuleChange, onClose }: AppSidebarProps) 
   };
 
   return (
+    <>
     <aside
       className={cn(
         "h-screen flex flex-col border-r border-sidebar-border transition-all duration-300 bg-gradient-sidebar",
@@ -97,6 +120,25 @@ const AppSidebar = ({ activeModule, onModuleChange, onClose }: AppSidebarProps) 
             {t(roleLabels[role] || "accountant")}
           </span>
         </div>
+      )}
+
+      {/* User profile section */}
+      {!collapsed && user && (
+        <button
+          type="button"
+          onClick={() => setShowProfile(true)}
+          className="mx-3 mt-2 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-secondary/30 hover:bg-secondary/60 transition-colors text-left"
+        >
+          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+            <User className="w-4 h-4 text-primary" />
+          </div>
+          <div className="overflow-hidden">
+            <p className="text-xs font-medium text-foreground truncate">
+              {user.user_metadata?.full_name || user.email?.split("@")[0] || "User"}
+            </p>
+            <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
+          </div>
+        </button>
       )}
 
       {/* Navigation */}
@@ -176,6 +218,85 @@ const AppSidebar = ({ activeModule, onModuleChange, onClose }: AppSidebarProps) 
         </div>
       )}
     </aside>
+
+    {/* Profile Modal */}
+    {showProfile && user && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowProfile(false)}>
+        <div className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl p-6 space-y-5" onClick={e => e.stopPropagation()}>
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                <User className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {user.user_metadata?.full_name || user.email?.split("@")[0] || "User"}
+                </p>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
+              </div>
+            </div>
+            <button type="button" title="বন্ধ করুন" onClick={() => setShowProfile(false)} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Role */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
+            <Shield className="w-4 h-4 text-primary" />
+            <span className="text-xs font-medium text-primary">{t(roleLabels[role || "accountant"] || "accountant")}</span>
+          </div>
+
+          {/* Change password form */}
+          <form onSubmit={handleChangePassword} className="space-y-3">
+            <div className="flex items-center gap-2 mb-1">
+              <KeyRound className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs font-semibold text-foreground">পাসওয়ার্ড পরিবর্তন</span>
+            </div>
+
+            <div className="relative">
+              <input
+                type={showPw ? "text" : "password"}
+                placeholder="নতুন পাসওয়ার্ড"
+                value={newPassword}
+                onChange={e => setNewPassword(e.target.value)}
+                className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 pr-9 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            <div className="relative">
+              <input
+                type={showConfirmPw ? "text" : "password"}
+                placeholder="পাসওয়ার্ড নিশ্চিত করুন"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 pr-9 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <button type="button" onClick={() => setShowConfirmPw(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showConfirmPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              </button>
+            </div>
+
+            <button type="submit" disabled={pwLoading || !newPassword}
+              className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-2 hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              {pwLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+              পাসওয়ার্ড সেভ করুন
+            </button>
+          </form>
+
+          {/* Logout */}
+          <button type="button" onClick={signOut}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors">
+            <LogOut className="w-4 h-4" />
+            লগআউট
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   );
 };
 

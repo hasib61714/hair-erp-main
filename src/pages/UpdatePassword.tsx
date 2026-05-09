@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
-import { Lock, Loader2, KeyRound } from "lucide-react";
+import { Lock, Loader2, KeyRound, Eye, EyeOff } from "lucide-react";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 
 const UpdatePassword = () => {
@@ -10,6 +10,8 @@ const UpdatePassword = () => {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
 
@@ -90,13 +92,16 @@ const UpdatePassword = () => {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
-                    type="password"
+                    type={showPw ? "text" : "password"}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="কমপক্ষে ৬ অক্ষর"
                     required
-                    className="w-full h-10 rounded-lg border border-border bg-secondary/50 pl-10 pr-4 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full h-10 rounded-lg border border-border bg-secondary/50 pl-10 pr-10 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
+                  <button type="button" title={showPw ? "লুকান" : "দেখান"} onClick={() => setShowPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
               <div>
@@ -104,13 +109,16 @@ const UpdatePassword = () => {
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
-                    type="password"
+                    type={showConfirmPw ? "text" : "password"}
                     value={confirm}
                     onChange={e => setConfirm(e.target.value)}
                     placeholder="আবার লিখুন"
                     required
-                    className="w-full h-10 rounded-lg border border-border bg-secondary/50 pl-10 pr-4 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full h-10 rounded-lg border border-border bg-secondary/50 pl-10 pr-10 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                   />
+                  <button type="button" title={showConfirmPw ? "লুকান" : "দেখান"} onClick={() => setShowConfirmPw(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    {showConfirmPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
               <button
