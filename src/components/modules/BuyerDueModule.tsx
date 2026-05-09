@@ -33,7 +33,7 @@ const BuyerDueModule = () => {
     ]);
 
     const buyerMap: Record<string, BuyerDue> = {};
-    (sales || []).forEach(s => {
+    ((sales || []) as any[]).forEach(s => {
       if (!buyerMap[s.buyer_name]) {
         buyerMap[s.buyer_name] = { buyer_name: s.buyer_name, total_due: 0, total_sales: 0, total_paid: 0, sale_count: 0 };
       }
@@ -42,7 +42,7 @@ const BuyerDueModule = () => {
       buyerMap[s.buyer_name].sale_count += 1;
     });
 
-    (bpayments || []).forEach(p => {
+    ((bpayments || []) as any[]).forEach(p => {
       if (buyerMap[p.buyer_name]) {
         buyerMap[p.buyer_name].total_paid += Number(p.amount);
         buyerMap[p.buyer_name].total_due -= Number(p.amount);
@@ -58,7 +58,7 @@ const BuyerDueModule = () => {
 
   const handlePayment = async () => {
     if (!selectedBuyer || !payAmount || !user) return;
-    const { error } = await supabase.from("buyer_payments").insert({
+    const { error } = await (supabase.from("buyer_payments") as any).insert({
       buyer_name: selectedBuyer,
       amount: Number(payAmount),
       payment_method: payMethod,
