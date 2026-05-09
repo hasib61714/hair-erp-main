@@ -86,9 +86,22 @@ const BuyerDueModule = () => {
   const visibleBuyers = showPaid ? buyers : buyers.filter(b => b.total_due > 0 && !b.is_paid);
 
   const toggleBuyerPaid = async (b: BuyerDue) => {
-    if (!b.buyer_id) { toast.error("Buyer not found in buyers table"); return; }
     const newVal = !b.is_paid;
-    const { error } = await (supabase.from("buyers") as any).update({ is_paid: newVal }).eq("id", b.buyer_id);
+    let buyerId = b.buyer_id;
+
+    if (!buyerId) {
+      // buyer not in buyers table yet — create a minimal record first
+      const { data: newBuyer, error: insertErr } = await (supabase.from("buyers") as any)
+        .insert({ name: b.buyer_name, created_by: user?.id })
+        .select("id")
+        .single();
+      if (insertErr) { toast.error(insertErr.message); return; }
+      buyerId = newBuyer.id;
+      // update local state with new id so subsequent toggles work
+      setBuyers(prev => prev.map(x => x.buyer_name === b.buyer_name ? { ...x, buyer_id: buyerId } : x));
+    }
+
+    const { error } = await (supabase.from("buyers") as any).update({ is_paid: newVal }).eq("id", buyerId);
     if (error) { toast.error(error.message); return; }
     setBuyers(prev => prev.map(x => x.buyer_name === b.buyer_name ? { ...x, is_paid: newVal } : x));
     toast.success(newVal ? "PAID সিল দেওয়া হয়েছে" : "PAID সিল সরানো হয়েছে");

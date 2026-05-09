@@ -22,7 +22,7 @@ type Return = {
   notes: string | null; created_at: string;
 };
 
-type GradeDetail = { grade: string; kg: number; rate: number };
+type GradeDetail = { grade: string; kg: number; rate: number; buyer_rate?: number };
 
 type Settlement = {
   id: string; party_name: string; buyer_rate: number; party_rate: number; margin: number;
@@ -201,22 +201,26 @@ const PartyModule = () => {
   // Settlement CRUD
   const resetSForm = () => {
     setSPartyName(""); setSBuyerRate(""); setSPartyRate(""); setSTotalSales(""); setSCommission("");
-    setSProcessingCost(""); setSPaid(""); setSGradeDetails([{ grade: "6\"", kg: 0, rate: 0 }]);
+    setSProcessingCost(""); setSPaid(""); setSGradeDetails([{ grade: "6\"", kg: 0, rate: 0, buyer_rate: 0 }]);
     setSRemandKg(""); setSChhatKg(""); setSComments(""); setSConsignmentId(""); setEditSId(null); setShowSForm(false);
   };
 
   const handleSaveSettlement = async () => {
-    const br = parseFloat(sBuyerRate) || 0; const pr = parseFloat(sPartyRate) || 0;
     const gradeTotal = sGradeDetails.reduce((s, g) => s + g.kg * g.rate, 0);
+    const buyerTotal = sGradeDetails.reduce((s, g) => s + g.kg * (g.buyer_rate || 0), 0);
     const ts = gradeTotal || parseFloat(sTotalSales) || 0;
     if (!sPartyName || ts <= 0) return;
 
-    const margin = br - pr; const comm = parseFloat(sCommission) || 0;
+    const margin = buyerTotal - ts; const comm = parseFloat(sCommission) || 0;
     const pc = parseFloat(sProcessingCost) || 0; const payable = ts - comm - pc;
     const paid = parseFloat(sPaid) || 0; const due = payable - paid;
+    // buyer_rate stored as weighted avg for reference (not shown to party)
+    const totalKg = sGradeDetails.reduce((s, g) => s + g.kg, 0);
+    const avgBuyerRate = totalKg > 0 ? buyerTotal / totalKg : 0;
+    const avgPartyRate = totalKg > 0 ? ts / totalKg : 0;
 
     const payload = {
-      party_name: sPartyName, buyer_rate: br, party_rate: pr, margin, commission: comm,
+      party_name: sPartyName, buyer_rate: avgBuyerRate, party_rate: avgPartyRate, margin, commission: comm,
       total_sales: ts, processing_cost: pc, payable, paid, due, status: due <= 0 ? "settled" : "pending",
       grade_details: sGradeDetails.filter(g => g.kg > 0) as unknown as Json,
       remand_kg: parseFloat(sRemandKg) || 0, chhat_kg: parseFloat(sChhatKg) || 0,
@@ -238,7 +242,7 @@ const PartyModule = () => {
     setSPartyRate(String(s.party_rate)); setSTotalSales(String(s.total_sales));
     setSCommission(String(s.commission)); setSProcessingCost(String(s.processing_cost || 0));
     setSPaid(String(s.paid || 0));
-    setSGradeDetails(s.grade_details.length > 0 ? s.grade_details : [{ grade: "6\"", kg: 0, rate: 0 }]);
+    setSGradeDetails(s.grade_details.length > 0 ? s.grade_details.map(g => ({ ...g, buyer_rate: g.buyer_rate ?? 0 })) : [{ grade: "6\"", kg: 0, rate: 0, buyer_rate: 0 }]);
     setSRemandKg(String(s.remand_kg || 0)); setSChhatKg(String(s.chhat_kg || 0));
     setSComments(s.comments || ""); setSConsignmentId(s.consignment_id || "");
     setShowSForm(true);
@@ -366,13 +370,14 @@ const PartyModule = () => {
   };
 
   // Grade detail helpers
-  const addGradeRow = () => setSGradeDetails([...sGradeDetails, { grade: "8\"", kg: 0, rate: 0 }]);
+  const addGradeRow = () => setSGradeDetails([...sGradeDetails, { grade: "8\"", kg: 0, rate: 0, buyer_rate: 0 }]);
   const removeGradeRow = (i: number) => setSGradeDetails(sGradeDetails.filter((_, idx) => idx !== i));
   const updateGradeRow = (i: number, field: string, val: string) => {
     const updated = [...sGradeDetails];
     if (field === "grade") updated[i].grade = val;
     else if (field === "kg") updated[i].kg = parseFloat(val) || 0;
     else if (field === "rate") updated[i].rate = parseFloat(val) || 0;
+    else if (field === "buyer_rate") updated[i].buyer_rate = parseFloat(val) || 0;
     setSGradeDetails(updated);
   };
 
@@ -565,7 +570,6 @@ const PartyModule = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                 <div><label className="text-xs text-muted-foreground mb-1 block">{t("partyName")}</label><input value={sPartyName} onChange={e => setSPartyName(e.target.value)} title={t("partyName")} aria-label={t("partyName")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{t("buyerRate")} ({lang === "bn" ? "গোপন" : "Hidden"})</label><input type="number" value={sBuyerRate} onChange={e => setSBuyerRate(e.target.value)} title={t("buyerRate")} aria-label={t("buyerRate")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
                 <div><label className="text-xs text-muted-foreground mb-1 block">{t("commission")}</label><input type="number" value={sCommission} onChange={e => setSCommission(e.target.value)} title={t("commission")} aria-label={t("commission")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
                 <div><label className="text-xs text-muted-foreground mb-1 block">{t("processingCost")}</label><input type="number" value={sProcessingCost} onChange={e => setSProcessingCost(e.target.value)} title={t("processingCost")} aria-label={t("processingCost")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
                 <div><label className="text-xs text-muted-foreground mb-1 block">{t("paid")}</label><input type="number" value={sPaid} onChange={e => setSPaid(e.target.value)} title={t("paid")} aria-label={t("paid")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
@@ -585,24 +589,50 @@ const PartyModule = () => {
               {/* Grade-wise details */}
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-semibold text-foreground">{t("gradeDetails")} ({lang === "bn" ? "পার্টি রেটে" : "Party Rate"})</label>
+                  <label className="text-xs font-semibold text-foreground">{t("gradeDetails")} ({lang === "bn" ? "পার্টি রেট + বায়ার রেট (গোপন)" : "Party Rate + Buyer Rate (hidden)"})</label>
                   <button type="button" onClick={addGradeRow} className="text-[11px] text-primary hover:underline">+ {lang === "bn" ? "গ্রেড যোগ" : "Add Grade"}</button>
                 </div>
+                {/* Column headers */}
+                <div className="flex items-center gap-2 mb-1 px-1">
+                  <span className="text-[10px] text-muted-foreground w-16">{lang === "bn" ? "গ্রেড" : "Grade"}</span>
+                  <span className="text-[10px] text-muted-foreground w-24">KG</span>
+                  <span className="text-[10px] text-muted-foreground w-28">{lang === "bn" ? "পার্টি দর (৳)" : "Party Rate"}</span>
+                  <span className="text-[10px] text-amber-500/80 w-28">🔒 {lang === "bn" ? "বায়ার দর (৳)" : "Buyer Rate"}</span>
+                  <span className="text-[10px] text-muted-foreground w-24">{lang === "bn" ? "মার্জিন" : "Margin"}</span>
+                </div>
                 <div className="space-y-2">
-                  {sGradeDetails.map((g, i) => (
+                  {sGradeDetails.map((g, i) => {
+                    const partyAmt = g.kg * g.rate;
+                    const buyerAmt = g.kg * (g.buyer_rate || 0);
+                    const marginAmt = buyerAmt - partyAmt;
+                    return (
                     <div key={i} className="flex items-center gap-2">
-                      <select value={g.grade} onChange={e => updateGradeRow(i, "grade", e.target.value)} aria-label={lang === "bn" ? "গ্রেড" : "Grade"} title={lang === "bn" ? "গ্রেড" : "Grade"} className="h-8 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+                      <select value={g.grade} onChange={e => updateGradeRow(i, "grade", e.target.value)} aria-label={lang === "bn" ? "গ্রেড" : "Grade"} title={lang === "bn" ? "গ্রেড" : "Grade"} className="h-8 w-16 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                         {GRADES.map(gr => <option key={gr} value={gr}>{gr}</option>)}
                       </select>
                       <input type="number" placeholder="KG" value={g.kg || ""} onChange={e => updateGradeRow(i, "kg", e.target.value)} className="w-24 h-8 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                      <input type="number" placeholder={lang === "bn" ? "দর (৳)" : "Rate"} value={g.rate || ""} onChange={e => updateGradeRow(i, "rate", e.target.value)} className="w-28 h-8 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                      <span className="text-xs text-muted-foreground w-24">= ৳{(g.kg * g.rate).toLocaleString()}</span>
+                      <input type="number" placeholder={lang === "bn" ? "পার্টি দর" : "Party Rate"} value={g.rate || ""} onChange={e => updateGradeRow(i, "rate", e.target.value)} className="w-28 h-8 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <input type="number" placeholder={lang === "bn" ? "বায়ার দর 🔒" : "Buyer Rate 🔒"} value={g.buyer_rate || ""} onChange={e => updateGradeRow(i, "buyer_rate", e.target.value)} className="w-28 h-8 rounded-lg border border-amber-500/30 bg-amber-500/5 px-2 text-xs text-amber-600 dark:text-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                      <span className={`text-xs w-24 ${marginAmt >= 0 ? "text-success" : "text-destructive"}`}>
+                        {g.kg > 0 ? `৳${partyAmt.toLocaleString()} (+${marginAmt.toLocaleString()})` : "—"}
+                      </span>
                       {sGradeDetails.length > 1 && <button type="button" aria-label="Remove grade row" onClick={() => removeGradeRow(i)} className="text-destructive/60 hover:text-destructive"><Trash2 className="w-3.5 h-3.5" /></button>}
                     </div>
-                  ))}
-                  <p className="text-xs font-medium text-foreground">
-                    {lang === "bn" ? "মোট" : "Total"}: {sGradeDetails.reduce((s, g) => s + g.kg, 0)} KG = ৳{sGradeDetails.reduce((s, g) => s + g.kg * g.rate, 0).toLocaleString()}
-                  </p>
+                    );
+                  })}
+                  {(() => {
+                    const totalKg = sGradeDetails.reduce((s, g) => s + g.kg, 0);
+                    const partyTotal = sGradeDetails.reduce((s, g) => s + g.kg * g.rate, 0);
+                    const buyerTotal = sGradeDetails.reduce((s, g) => s + g.kg * (g.buyer_rate || 0), 0);
+                    const margin = buyerTotal - partyTotal;
+                    return (
+                      <div className="text-xs font-medium text-foreground flex flex-wrap gap-4 mt-1">
+                        <span>{lang === "bn" ? "মোট" : "Total"}: {totalKg} KG = ৳{partyTotal.toLocaleString()} (পার্টি)</span>
+                        {buyerTotal > 0 && <span className="text-amber-600 dark:text-amber-400">বায়ার: ৳{buyerTotal.toLocaleString()}</span>}
+                        {buyerTotal > 0 && <span className={margin >= 0 ? "text-success" : "text-destructive"}>মার্জিন: ৳{margin.toLocaleString()}</span>}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
