@@ -191,7 +191,7 @@ const TwoByTwoStockModule = () => {
               <input type="number" placeholder="KG" value={gr.kg || ""} onChange={e => updateGradeRow(i, "kg", e.target.value)} className="h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground" />
             </div>
           ))}
-          <button type="button" onClick={() => setGradeRows([...gradeRows, { grade: '6"', kg: 0 }])} className="text-xs text-primary mb-4">+ {t("grade")} যোগ করুন</button>
+          <button type="button" onClick={() => { const G=['6"','8"','10"','12"','14"','16"','18"','20"','22"','24"','26"','28"','30"','32"']; const last=gradeRows[gradeRows.length-1]?.grade; const next=G[Math.min(G.indexOf(last)+1,G.length-1)]??'6"'; setGradeRows([...gradeRows,{grade:next,kg:0}]); }} className="text-xs text-primary mb-4">+ {t("grade")} যোগ করুন</button>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>

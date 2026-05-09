@@ -339,7 +339,7 @@ ${company.logo_url ? `<div class="watermark"><img src="${company.logo_url}"/></d
                   <input placeholder="মন্তব্য / Remarks" value={gr.remarks || ""} onChange={e => updateGradeRow(i, "remarks", e.target.value)} className="h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground" />
                 </div>
               ))}
-              <button type="button" onClick={() => setGradeRows([...gradeRows, { grade: '12"', kg: 0, rate: 0, remarks: "" }])} className="text-xs text-primary mb-4">+ Add Grade Row</button>
+              <button type="button" onClick={() => { const G=['6"','8"','10"','12"','14"','16"','18"','20"','22"','24"','26"','28"','30"','32"']; const last=gradeRows[gradeRows.length-1]?.grade; const next=G[Math.min(G.indexOf(last)+1,G.length-1)]??'12"'; setGradeRows([...gradeRows,{grade:next,kg:0,rate:0,remarks:""}]); }} className="text-xs text-primary mb-4">+ Add Grade Row</button>
             </>
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">

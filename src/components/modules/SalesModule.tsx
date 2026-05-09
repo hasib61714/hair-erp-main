@@ -208,7 +208,7 @@ const SalesModule = () => {
                   )}
                 </div>
               ))}
-              <button type="button" onClick={() => setGradeRows([...gradeRows, { grade: '12"', kg: 0, rate: 0 }])} className="text-xs text-primary hover:underline mb-2">+ {t("gradeDetails")}</button>
+              <button type="button" onClick={() => { const G=['6"','8"','10"','12"','14"','16"','18"','20"','22"','24"','26"','28"','30"','32"']; const last=gradeRows[gradeRows.length-1]?.grade; const next=G[Math.min(G.indexOf(last)+1,G.length-1)]??'12"'; setGradeRows([...gradeRows,{grade:next,kg:0,rate:0}]); }} className="text-xs text-primary hover:underline mb-2">+ {t("gradeDetails")}</button>
               <p className="text-xs text-foreground mt-1">{t("total")}: {gradeTotalKg} KG | ৳{gradeTotal.toLocaleString()} | {t("due")}: ৳{(gradeTotal - (parseFloat(advanceAmt) || 0)).toLocaleString()}</p>
             </div>
           )}
