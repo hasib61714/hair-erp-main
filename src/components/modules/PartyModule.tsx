@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Pencil, Trash2, Package, RotateCcw, FileText, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Pencil, Trash2, Package, RotateCcw, FileText, ChevronDown, ChevronUp, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -29,7 +29,7 @@ type Settlement = {
   commission: number; total_sales: number; processing_cost: number | null; payable: number | null;
   paid: number | null; due: number | null; status: string; grade_details: GradeDetail[];
   remand_kg: number | null; chhat_kg: number | null; comments: string | null;
-  consignment_id: string | null; created_at: string;
+  consignment_id: string | null; created_at: string; is_paid: boolean;
 };
 
 const GRADES = ["6\"", "8\"", "10\"", "12\"", "14\"", "16\"", "18\"", "20\"", "22\"", "24\"", "26\"", "28\"", "30\"", "32\""];
@@ -114,6 +114,7 @@ const PartyModule = () => {
     setSettlements((data ?? []).map(s => ({
       ...s,
       grade_details: Array.isArray(s.grade_details) ? (s.grade_details as unknown as GradeDetail[]) : [],
+      is_paid: (s as any).is_paid ?? false,
     })));
     setLoadingS(false);
   };
@@ -250,6 +251,14 @@ const PartyModule = () => {
     toast.success("ডিলিট হয়েছে"); fetchSettlements();
   };
 
+  const toggleSettlementPaid = async (s: Settlement) => {
+    const newVal = !s.is_paid;
+    const { error } = await (supabase.from("party_settlements") as any).update({ is_paid: newVal }).eq("id", s.id);
+    if (error) { toast.error(error.message); return; }
+    setSettlements(prev => prev.map(x => x.id === s.id ? { ...x, is_paid: newVal } : x));
+    toast.success(newVal ? "PAID সিল দেওয়া হয়েছে" : "PAID সিল সরানো হয়েছে");
+  };
+
   // Print settlement invoice (party view - no buyer rate)
   const handlePrintSettlement = (s: Settlement) => {
     setPrintSettlement(s);
@@ -348,6 +357,7 @@ const PartyModule = () => {
         <p style="font-size:10px;color:#999;margin-top:20px;text-align:center;">
           ${settings.company_name} — Computer Generated Settlement
         </p>
+        ${(s.is_paid || (Number(s.due || 0) <= 0 && s.status === "settled")) ? `<div style="text-align:right;margin-top:16px"><span style="display:inline-block;border:3px solid #16a34a;color:#16a34a;font-size:24px;font-weight:900;letter-spacing:4px;padding:4px 16px;border-radius:4px;transform:rotate(-12deg);opacity:0.85">✔ PAID পরিশোধিত</span></div>` : ""}
       </body></html>`);
       printWindow.document.close();
       printWindow.print();
@@ -647,6 +657,17 @@ const PartyModule = () => {
                         </div>
                         <div className="flex items-center gap-1">
                           <button type="button" aria-label="Print settlement" onClick={ev => { ev.stopPropagation(); handlePrintSettlement(s); }} className="p-1 rounded hover:bg-secondary"><FileText className="w-4 h-4 text-primary" /></button>
+                          <button type="button" aria-label={s.is_paid ? "Remove PAID seal" : "Mark as PAID"}
+                            onClick={ev => { ev.stopPropagation(); toggleSettlementPaid(s); }}
+                            title={s.is_paid ? "PAID সিল সরান" : "পরিশোধিত হিসেবে চিহ্নিত করুন"}
+                            className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
+                              s.is_paid
+                                ? "border-success bg-success/10 text-success hover:bg-success/20"
+                                : "border-border bg-secondary/50 text-muted-foreground hover:border-success/50 hover:text-success"
+                            }`}>
+                            <CheckCircle2 className="w-3 h-3" />
+                            {s.is_paid ? "পরিশোধিত" : "PAID চিহ্নিত"}
+                          </button>
                           {can_edit && <button type="button" aria-label="Edit settlement" onClick={ev => { ev.stopPropagation(); handleEditSettlement(s); }} className="p-1 rounded hover:bg-secondary"><Pencil className="w-4 h-4 text-muted-foreground" /></button>}
                           {can_delete && <button type="button" aria-label="Delete settlement" onClick={ev => { ev.stopPropagation(); handleDeleteSettlement(s.id); }} className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-4 h-4 text-destructive/70" /></button>}
                         </div>
@@ -682,7 +703,12 @@ const PartyModule = () => {
                         {Number(s.processing_cost || 0) > 0 && <span className="text-muted-foreground">প্রসেসিং: <strong>-৳{Number(s.processing_cost).toLocaleString()}</strong></span>}
                         <span className="text-success">আমরা পাবো: <strong>৳{Number(s.payable || 0).toLocaleString()}</strong></span>
                         <span className="text-info">অগ্রিম: <strong>৳{Number(s.paid || 0).toLocaleString()}</strong></span>
-                        {Number(s.due || 0) > 0 && <span className="text-destructive">বাকি: <strong>৳{Number(s.due).toLocaleString()}</strong></span>}
+                        {Number(s.due || 0) > 0 && !s.is_paid && <span className="text-destructive">বাকি: <strong>৳{Number(s.due).toLocaleString()}</strong></span>}
+                        {(s.is_paid || (Number(s.due || 0) <= 0 && s.status === "settled")) && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border-2 border-success text-success text-[10px] font-bold tracking-widest rotate-[-4deg] select-none">
+                            <CheckCircle2 className="w-3 h-3" /> PAID
+                          </span>
+                        )}
                       </div>
                     </div>
                   );

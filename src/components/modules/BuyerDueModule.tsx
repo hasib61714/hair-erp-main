@@ -3,7 +3,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Users, Plus, History } from "lucide-react";
+import { Users, Plus, History, CheckCircle2 } from "lucide-react";
 
 type BuyerDue = {
   buyer_name: string;
@@ -11,6 +11,8 @@ type BuyerDue = {
   total_sales: number;
   total_paid: number;
   sale_count: number;
+  is_paid: boolean;
+  buyer_id?: string;
 };
 
 const BuyerDueModule = () => {
@@ -21,21 +23,26 @@ const BuyerDueModule = () => {
   const [loading, setLoading] = useState(true);
   const [selectedBuyer, setSelectedBuyer] = useState<string | null>(null);
   const [showPayForm, setShowPayForm] = useState(false);
+  const [showPaid, setShowPaid] = useState(false);
   const [payAmount, setPayAmount] = useState("");
   const [payMethod, setPayMethod] = useState("cash");
   const [payNote, setPayNote] = useState("");
 
   const fetchData = async () => {
     setLoading(true);
-    const [{ data: sales }, { data: bpayments }] = await Promise.all([
+    const [{ data: sales }, { data: bpayments }, { data: buyerRows }] = await Promise.all([
       supabase.from("sales").select("buyer_name, total_amount, due_amount"),
       supabase.from("buyer_payments").select("*").order("payment_date", { ascending: false }),
+      supabase.from("buyers").select("id, name, is_paid"),
     ]);
+
+    const buyerIdMap: Record<string, { id: string; is_paid: boolean }> = {};
+    (buyerRows || []).forEach((b: any) => { buyerIdMap[b.name] = { id: b.id, is_paid: b.is_paid ?? false }; });
 
     const buyerMap: Record<string, BuyerDue> = {};
     ((sales || []) as any[]).forEach(s => {
       if (!buyerMap[s.buyer_name]) {
-        buyerMap[s.buyer_name] = { buyer_name: s.buyer_name, total_due: 0, total_sales: 0, total_paid: 0, sale_count: 0 };
+        buyerMap[s.buyer_name] = { buyer_name: s.buyer_name, total_due: 0, total_sales: 0, total_paid: 0, sale_count: 0, is_paid: buyerIdMap[s.buyer_name]?.is_paid ?? false, buyer_id: buyerIdMap[s.buyer_name]?.id };
       }
       buyerMap[s.buyer_name].total_due += Number(s.due_amount || 0);
       buyerMap[s.buyer_name].total_sales += Number(s.total_amount || 0);
@@ -49,7 +56,7 @@ const BuyerDueModule = () => {
       }
     });
 
-    setBuyers(Object.values(buyerMap).filter(b => b.total_due > 0).sort((a, b) => b.total_due - a.total_due));
+    setBuyers(Object.values(buyerMap).sort((a, b) => b.total_due - a.total_due));
     setPayments(bpayments || []);
     setLoading(false);
   };
@@ -74,7 +81,18 @@ const BuyerDueModule = () => {
   };
 
   const fmt = (n: number) => "৳" + Math.abs(n).toLocaleString("en-IN");
-  const totalDue = buyers.reduce((s, b) => s + b.total_due, 0);
+  const totalDue = buyers.filter(b => b.total_due > 0 && !b.is_paid).reduce((s, b) => s + b.total_due, 0);
+  const paidCount = buyers.filter(b => b.total_due <= 0 || b.is_paid).length;
+  const visibleBuyers = showPaid ? buyers : buyers.filter(b => b.total_due > 0 && !b.is_paid);
+
+  const toggleBuyerPaid = async (b: BuyerDue) => {
+    if (!b.buyer_id) { toast.error("Buyer not found in buyers table"); return; }
+    const newVal = !b.is_paid;
+    const { error } = await (supabase.from("buyers") as any).update({ is_paid: newVal }).eq("id", b.buyer_id);
+    if (error) { toast.error(error.message); return; }
+    setBuyers(prev => prev.map(x => x.buyer_name === b.buyer_name ? { ...x, is_paid: newVal } : x));
+    toast.success(newVal ? "PAID সিল দেওয়া হয়েছে" : "PAID সিল সরানো হয়েছে");
+  };
 
   const buyerPayments = selectedBuyer ? payments.filter(p => p.buyer_name === selectedBuyer) : [];
 
@@ -87,9 +105,20 @@ const BuyerDueModule = () => {
           <h2 className="text-xl font-bold text-foreground">{lang === "bn" ? "বায়ার বকেয়া ট্র্যাকিং" : "Buyer Due Tracking"}</h2>
           <p className="text-xs text-muted-foreground">{lang === "bn" ? "কোন বায়ারের কত টাকা বকেয়া আছে" : "Track outstanding dues per buyer"}</p>
         </div>
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-2">
-          <p className="text-xs text-muted-foreground">{lang === "bn" ? "মোট বকেয়া" : "Total Outstanding"}</p>
-          <p className="text-lg font-bold text-destructive">{fmt(totalDue)}</p>
+        <div className="flex items-center gap-3">
+          {paidCount > 0 && (
+            <button onClick={() => setShowPaid(p => !p)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                showPaid ? "border-success/50 bg-success/10 text-success" : "border-border bg-secondary/50 text-muted-foreground hover:bg-secondary"
+              }`}>
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              {showPaid ? (lang === "bn" ? "পরিশোধিত লুকান" : "Hide Paid") : (lang === "bn" ? `পরিশোধিত দেখুন (${paidCount})` : `Show Paid (${paidCount})`)}
+            </button>
+          )}
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-2">
+            <p className="text-xs text-muted-foreground">{lang === "bn" ? "মোট বকেয়া" : "Total Outstanding"}</p>
+            <p className="text-lg font-bold text-destructive">{fmt(totalDue)}</p>
+          </div>
         </div>
       </div>
 
@@ -107,27 +136,53 @@ const BuyerDueModule = () => {
                 </tr>
               </thead>
               <tbody>
-                {buyers.map(b => (
-                  <tr key={b.buyer_name} className={`border-b border-border/50 hover:bg-secondary/20 cursor-pointer transition-colors ${selectedBuyer === b.buyer_name ? "bg-primary/5" : ""}`}
+                {visibleBuyers.map(b => {
+                  const isPaid = b.is_paid || b.total_due <= 0;
+                  return (
+                  <tr key={b.buyer_name} className={`border-b border-border/50 hover:bg-secondary/20 cursor-pointer transition-colors ${
+                    selectedBuyer === b.buyer_name ? "bg-primary/5" : ""
+                  } ${isPaid ? "opacity-60" : ""}`}
                     onClick={() => setSelectedBuyer(b.buyer_name)}>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-2">
                         <Users className="w-3.5 h-3.5 text-muted-foreground" />
                         <span className="font-medium text-foreground">{b.buyer_name}</span>
                         <span className="text-[10px] text-muted-foreground">({b.sale_count})</span>
+                        {isPaid && (
+                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border-2 border-success text-success text-[10px] font-bold tracking-widest rotate-[-4deg] select-none">
+                            <CheckCircle2 className="w-3 h-3" /> PAID
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-right text-foreground">{fmt(b.total_sales)}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-destructive">{fmt(b.total_due)}</td>
+                    <td className={`px-4 py-2.5 text-right font-semibold ${isPaid ? "text-success" : "text-destructive"}`}>
+                      {isPaid ? (lang === "bn" ? "পরিশোধিত" : "Cleared") : fmt(b.total_due)}
+                    </td>
                     <td className="px-4 py-2.5 text-center">
-                      <button onClick={e => { e.stopPropagation(); setSelectedBuyer(b.buyer_name); setShowPayForm(true); }}
-                        className="px-2 py-1 rounded text-[10px] bg-success/10 text-success hover:bg-success/20 transition-colors">
-                        <Plus className="w-3 h-3 inline mr-0.5" />{lang === "bn" ? "পেমেন্ট" : "Pay"}
-                      </button>
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={e => { e.stopPropagation(); toggleBuyerPaid(b); }}
+                          title={b.is_paid ? "PAID সিল সরান" : "PAID চিহ্নিত করুন"}
+                          className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
+                            b.is_paid
+                              ? "border-success bg-success/10 text-success hover:bg-success/20"
+                              : "border-border bg-secondary/50 text-muted-foreground hover:border-success/50 hover:text-success"
+                          }`}>
+                          <CheckCircle2 className="w-3 h-3" />
+                          {b.is_paid ? "পরিশোধিত" : "PAID"}
+                        </button>
+                        {!isPaid && (
+                          <button onClick={e => { e.stopPropagation(); setSelectedBuyer(b.buyer_name); setShowPayForm(true); }}
+                            className="px-2 py-1 rounded text-[10px] bg-success/10 text-success hover:bg-success/20 transition-colors">
+                            <Plus className="w-3 h-3 inline mr-0.5" />{lang === "bn" ? "পেমেন্ট" : "Pay"}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
-                ))}
-                {buyers.length === 0 && (
+                  );
+                })}
+                {visibleBuyers.length === 0 && (
                   <tr><td colSpan={4} className="text-center py-8 text-muted-foreground">{lang === "bn" ? "কোন বকেয়া নেই" : "No outstanding dues"}</td></tr>
                 )}
               </tbody>

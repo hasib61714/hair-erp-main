@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Pencil, Trash2, MessageCircle, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, MessageCircle, Search, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useConfirm } from "@/contexts/ConfirmContext";
@@ -20,6 +20,7 @@ type Buyer = {
   is_active: boolean;
   created_at: string;
   total_due?: number;
+  has_sales?: boolean;
 };
 
 const countryOptions = [
@@ -53,13 +54,19 @@ const BuyerProfileModule = () => {
   const fetchBuyers = async () => {
     const { data: buyerRows } = await supabase.from("buyers").select("*").order("name");
     // Get dues per buyer
-    const { data: salesDues } = await supabase.from("sales").select("buyer_name, due_amount").gt("due_amount", 0);
+    const { data: salesDues } = await supabase.from("sales").select("buyer_name, due_amount");
+    const { data: bpayments } = await supabase.from("buyer_payments").select("buyer_name, amount");
     const dueMap: Record<string, number> = {};
+    const hasMap: Record<string, boolean> = {};
     (salesDues || []).forEach(s => {
       dueMap[s.buyer_name] = (dueMap[s.buyer_name] || 0) + Number(s.due_amount || 0);
+      hasMap[s.buyer_name] = true;
+    });
+    (bpayments || []).forEach(p => {
+      if (dueMap[p.buyer_name] !== undefined) dueMap[p.buyer_name] -= Number(p.amount || 0);
     });
 
-    setBuyers((buyerRows || []).map(b => ({ ...b, total_due: dueMap[b.name] || 0 })));
+    setBuyers((buyerRows || []).map(b => ({ ...b, total_due: dueMap[b.name] || 0, has_sales: hasMap[b.name] || false })));
     setLoading(false);
   };
 
@@ -198,6 +205,11 @@ const BuyerProfileModule = () => {
                     {(b.total_due || 0) > 0 && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-destructive/15 text-destructive font-medium">
                         {lang === "bn" ? "বকেয়া" : "Due"}: ৳{(b.total_due || 0).toLocaleString()}
+                      </span>
+                    )}
+                    {(b.total_due || 0) <= 0 && b.has_sales && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border-2 border-success text-success text-[10px] font-bold tracking-widest rotate-[-4deg] select-none">
+                        <CheckCircle2 className="w-3 h-3" /> PAID
                       </span>
                     )}
                   </div>

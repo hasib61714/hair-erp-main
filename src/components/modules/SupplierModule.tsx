@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Truck, Plus, Edit2, Trash2, Printer, CreditCard, X, Eye } from "lucide-react";
+import { Truck, Plus, Edit2, Trash2, Printer, CreditCard, X, Eye, CheckCircle2 } from "lucide-react";
 import { useConfirm } from "@/contexts/ConfirmContext";
 
 const SupplierModule = () => {
@@ -182,6 +182,7 @@ const SupplierModule = () => {
       <div style="margin-top:20px;text-align:right;font-size:10px;color:#999">
         প্রিন্ট তারিখ: ${new Date().toLocaleDateString("en-GB")}
       </div>
+      ${totalDue <= 0 && totalPurchase > 0 ? `<div style="text-align:right;margin-top:12px"><span style="display:inline-block;border:3px solid #16a34a;color:#16a34a;font-size:24px;font-weight:900;letter-spacing:4px;padding:4px 16px;border-radius:4px;transform:rotate(-12deg);opacity:0.85">✔ PAID পরিশোধিত</span></div>` : ""}
       <button onclick="window.print()" style="margin-top:10px;padding:8px 20px;background:#333;color:#fff;border:none;border-radius:6px;cursor:pointer">🖨️ Print</button>
       </body></html>
     `;
@@ -322,8 +323,17 @@ const SupplierModule = () => {
                     <tr key={s.id} className={`border-b border-border/50 hover:bg-secondary/20 cursor-pointer ${selectedSupplier === s.name ? "bg-primary/5" : ""}`}
                       onClick={() => setSelectedSupplier(s.name)}>
                       <td className="px-4 py-2.5">
-                        <div className="font-medium text-foreground">{s.name}</div>
-                        <div className="text-[10px] text-muted-foreground">{s.phone || ""}</div>
+                        <div className="flex items-center gap-2">
+                          <div>
+                            <div className="font-medium text-foreground">{s.name}</div>
+                            <div className="text-[10px] text-muted-foreground">{s.phone || ""}</div>
+                          </div>
+                          {due <= 0 && total > 0 && (
+                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border-2 border-success text-success text-[10px] font-bold tracking-widest rotate-[-4deg] select-none">
+                              <CheckCircle2 className="w-3 h-3" /> PAID
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-2.5 text-muted-foreground">{countryLabel(s.country)}</td>
                       <td className="px-4 py-2.5 text-right font-medium">{fmt(total)}</td>

@@ -72,7 +72,7 @@ const ChallanPrint = forwardRef<HTMLDivElement, { challan: ChallanData }>(({ cha
       </table>
 
       {/* Payment Summary */}
-      <div className="border border-black p-4 mb-8 text-sm">
+      <div className="border border-black p-4 mb-4 text-sm">
         <div className="flex justify-between mb-1">
           <span>মোট মূল্য / Total Amount:</span>
           <span className="font-bold">৳{Number(challan.total_amount).toLocaleString()}</span>
@@ -86,6 +86,15 @@ const ChallanPrint = forwardRef<HTMLDivElement, { challan: ChallanData }>(({ cha
           <span className="font-bold text-lg">৳{Number(challan.due_amount || 0).toLocaleString()}</span>
         </div>
       </div>
+
+      {/* PAID Stamp */}
+      {Number(challan.due_amount || 0) <= 0 && (
+        <div className="flex justify-end mb-6">
+          <div className="-rotate-12 inline-block border-4 border-green-600 text-green-600 text-2xl font-black tracking-widest px-5 py-1 rounded opacity-80 select-none">
+            ✔ PAID পরিশোধিত
+          </div>
+        </div>
+      )}
 
       {/* Signatures */}
       <div className="flex justify-between mt-16 text-sm">

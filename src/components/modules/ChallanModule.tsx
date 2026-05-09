@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { FileText, Plus, Pencil, Printer, Trash2, Minus } from "lucide-react";
+import { FileText, Plus, Pencil, Printer, Trash2, Minus, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import type { Json } from "@/integrations/supabase/types";
@@ -15,7 +15,7 @@ type ChallanNotes = { ri?: number; chhat?: number; giti?: number };
 type Challan = {
   id: string; challan_no: string; challan_date: string; buyer_name: string; buyer_country: string;
   product_type: string; grade_details: GradeDetail[]; total_amount: number; advance_amount: number | null; due_amount: number | null;
-  description: string | null; notes: ChallanNotes | null;
+  description: string | null; notes: ChallanNotes | null; is_paid: boolean;
 };
 
 const countryOptions = [
@@ -55,6 +55,7 @@ const ChallanModule = () => {
       product_type: r.product_type ?? "two_by_two",
       description: (r as any).description ?? null,
       notes: (r as any).notes as ChallanNotes ?? null,
+      is_paid: (r as any).is_paid ?? false,
     })));
     setLoading(false);
   };
@@ -126,6 +127,14 @@ const ChallanModule = () => {
     toast.success("ডিলিট হয়েছে"); fetchData();
   };
 
+  const togglePaid = async (c: Challan) => {
+    const newVal = !c.is_paid;
+    const { error } = await (supabase.from("challans") as any).update({ is_paid: newVal }).eq("id", c.id);
+    if (error) { toast.error(error.message); return; }
+    setData(prev => prev.map(x => x.id === c.id ? { ...x, is_paid: newVal } : x));
+    toast.success(newVal ? "PAID সিল দেওয়া হয়েছে" : "PAID সিল সরানো হয়েছে");
+  };
+
   const updateGradeRow = (i: number, field: keyof GradeDetail, val: string | number) => {
     const copy = [...gradeRows]; copy[i] = { ...copy[i], [field]: field === "grade" ? val : Number(val) }; setGradeRows(copy);
   };
@@ -188,6 +197,8 @@ const ChallanModule = () => {
   .sum-row{display:flex;justify-content:space-between;padding:5px 12px;border-bottom:1px solid #ccc;font-size:12.5px}
   .sum-row:last-child{border-bottom:none}
   .sum-row.total-row{font-weight:700;font-size:14px;background:#f9f9f9}
+  /* ---- PAID STAMP ---- */
+  .paid-stamp{display:inline-block;border:3px solid #16a34a;color:#16a34a;font-size:28px;font-weight:900;letter-spacing:4px;padding:4px 16px;border-radius:4px;transform:rotate(-12deg);opacity:0.85;margin-top:12px;text-align:center}
   /* ---- SIGNATURE ---- */
   .sig-section{margin-top:40px;text-align:right;font-size:12px}
   .sig-line{border-top:1px solid #333;width:180px;margin-left:auto;margin-bottom:4px}
@@ -266,6 +277,8 @@ ${company.logo_url ? `<div class="watermark"><img src="${company.logo_url}"/></d
       <div class="sum-row total-row"><span>বাকী / Due :</span><span>৳${Number(c.due_amount || 0).toLocaleString()}</span></div>
     </div>
   </div>
+
+  ${(c.is_paid || Number(c.due_amount || 0) <= 0) ? `<div style="text-align:right;margin-top:8px"><span class="paid-stamp">✔ PAID পরিশোধিত</span></div>` : ""}
 
   <div class="sig-section">
     <div class="sig-line"></div>
@@ -407,6 +420,17 @@ ${company.logo_url ? `<div class="watermark"><img src="${company.logo_url}"/></d
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
+                  <button type="button" onClick={() => togglePaid(c)}
+                    aria-label={c.is_paid ? "Remove PAID seal" : "Mark as PAID"}
+                    title={c.is_paid ? "পেড সিল সরান" : "পারিশোধিত হিসেবে চিহ্নিত করুন"}
+                    className={`flex items-center gap-1 px-2 py-1 rounded text-[10px] font-semibold border transition-colors ${
+                      c.is_paid
+                        ? "border-success bg-success/10 text-success hover:bg-success/20"
+                        : "border-border bg-secondary/50 text-muted-foreground hover:border-success/50 hover:text-success hover:bg-success/5"
+                    }`}>
+                    <CheckCircle2 className="w-3 h-3" />
+                    {c.is_paid ? "পরিশোধিত" : "PAID চিহ্নিত"}
+                  </button>
                   <button type="button" onClick={() => handlePrint(c)} className="p-1 rounded hover:bg-secondary" aria-label="Print challan"><Printer className="w-4 h-4 text-primary" /></button>
                   {can_edit && <button type="button" onClick={() => handleEdit(c)} className="p-1 rounded hover:bg-secondary" aria-label="Edit challan"><Pencil className="w-4 h-4 text-muted-foreground" /></button>}
                   {can_delete && <button type="button" onClick={() => handleDelete(c.id)} className="p-1 rounded hover:bg-destructive/10" aria-label="Delete challan"><Trash2 className="w-4 h-4 text-destructive/70" /></button>}
@@ -435,7 +459,13 @@ ${company.logo_url ? `<div class="watermark"><img src="${company.logo_url}"/></d
               <div className="flex items-center justify-end gap-6 text-xs pt-2 border-t border-border">
                 <span className="text-foreground font-medium">{t("total")}: ৳{Number(c.total_amount).toLocaleString()}</span>
                 <span className="text-success">{t("advance")}: ৳{Number(c.advance_amount || 0).toLocaleString()}</span>
-                <span className="text-destructive font-medium">{t("due")}: ৳{Number(c.due_amount || 0).toLocaleString()}</span>
+                {(c.is_paid || Number(c.due_amount || 0) <= 0) ? (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border-2 border-success text-success text-[10px] font-bold tracking-widest -rotate-3 select-none">
+                    <CheckCircle2 className="w-3 h-3" /> PAID
+                  </span>
+                ) : (
+                  <span className="text-destructive font-medium">{t("due")}: ৳{Number(c.due_amount).toLocaleString()}</span>
+                )}
               </div>
             </div>
           ))}
