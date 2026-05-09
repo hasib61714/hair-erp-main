@@ -9,12 +9,15 @@ type InventoryRow = {
   id: string; grade: string; stock_kg: number; rate_per_kg: number; factory_id: string | null; product_type: string;
 };
 type FactoryRow = { id: string; name: string; location: string; factory_type: string };
+type GradeRow = { grade: string; kg: string; rate: string };
 
 const PRODUCT_TYPES = [
   { value: "guti", labelKey: "gutiProduct" as const },
   { value: "kachi", labelKey: "kachiProduct" as const },
   { value: "two_by_two", labelKey: "twobytwoProduct" as const },
 ];
+
+const GRADES = ['6"','8"','10"','12"','14"','16"','18"','20"','22"','24"','26"','28"','30"','32"'];
 
 const InventoryModule = () => {
   const { t } = useLanguage();
@@ -31,6 +34,9 @@ const InventoryModule = () => {
   const [newRate, setNewRate] = useState("");
   const [newFactory, setNewFactory] = useState("");
   const [newProductType, setNewProductType] = useState("two_by_two");
+  // Grade rows for kachi/two_by_two
+  const [gradeRows, setGradeRows] = useState<GradeRow[]>([{ grade: '6"', kg: "", rate: "" }]);
+  const isMultiGrade = newProductType === "kachi" || newProductType === "two_by_two";
 
   // Factory name editing
   const [editFactoryId, setEditFactoryId] = useState<string | null>(null);
@@ -61,6 +67,22 @@ const InventoryModule = () => {
   };
 
   const handleAdd = async () => {
+    if (isMultiGrade) {
+      const validRows = gradeRows.filter(r => r.kg && parseFloat(r.kg) > 0);
+      if (validRows.length === 0) { toast.error("কমপক্ষে একটি গ্রেড এন্ট্রি দিন"); return; }
+      const inserts = validRows.map(r => ({
+        grade: r.grade,
+        stock_kg: parseFloat(r.kg) || 0,
+        rate_per_kg: parseFloat(r.rate) || 0,
+        factory_id: newFactory || null,
+        product_type: newProductType,
+      }));
+      const { error } = await supabase.from("inventory").insert(inserts);
+      if (error) { toast.error(error.message); return; }
+      toast.success(t("saved"));
+      setShowAdd(false); setGradeRows([{ grade: '6"', kg: "", rate: "" }]); setNewFactory(""); setNewProductType("two_by_two");
+      fetchData(); return;
+    }
     if (!newGrade.trim()) { toast.error("Grade is required"); return; }
     const { error } = await supabase.from("inventory").insert({
       grade: newGrade.trim(),
@@ -130,24 +152,14 @@ const InventoryModule = () => {
       {showAdd && (
         <div className="rounded-xl border border-primary/30 p-4 bg-gradient-card shadow-card space-y-3">
           <h3 className="text-sm font-semibold text-foreground">{t("addEntry")}</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">{t("grade")}</label>
-              <input value={newGrade} onChange={e => setNewGrade(e.target.value)} placeholder='e.g. 6"' className={inputClass} />
-            </div>
+
+          {/* Product type + Factory — always shown */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">{t("productType")}</label>
-              <select value={newProductType} onChange={e => setNewProductType(e.target.value)} aria-label={t("productType")} title={t("productType")} className={inputClass}>
+              <select value={newProductType} onChange={e => { setNewProductType(e.target.value); setGradeRows([{ grade: '6"', kg: "", rate: "" }]); }} aria-label={t("productType")} title={t("productType")} className={inputClass}>
                 {PRODUCT_TYPES.map(p => <option key={p.value} value={p.value}>{t(p.labelKey)}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">{t("stock")} (KG)</label>
-              <input type="number" value={newStock} onChange={e => setNewStock(e.target.value)} placeholder="0" className={inputClass} />
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">{t("rate")} (৳/KG)</label>
-              <input type="number" value={newRate} onChange={e => setNewRate(e.target.value)} placeholder="0" className={inputClass} />
             </div>
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">{t("factory")}</label>
@@ -157,6 +169,74 @@ const InventoryModule = () => {
               </select>
             </div>
           </div>
+
+          {/* GUTI mode: single grade row */}
+          {!isMultiGrade && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="text-[11px] text-muted-foreground mb-1 block">{t("grade")}</label>
+                <input value={newGrade} onChange={e => setNewGrade(e.target.value)} placeholder='e.g. 6"' className={inputClass} />
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground mb-1 block">{t("stock")} (KG)</label>
+                <input type="number" value={newStock} onChange={e => setNewStock(e.target.value)} placeholder="0" className={inputClass} />
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground mb-1 block">{t("rate")} (৳/KG)</label>
+                <input type="number" value={newRate} onChange={e => setNewRate(e.target.value)} placeholder="0" className={inputClass} />
+              </div>
+            </div>
+          )}
+
+          {/* KACHI / TWO_BY_TWO mode: grade rows */}
+          {isMultiGrade && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-semibold text-foreground">{t("gradeDetails")}</label>
+                <button type="button" onClick={() => setGradeRows(r => [...r, { grade: '8"', kg: "", rate: "" }])} className="text-[11px] text-primary hover:underline">
+                  + গ্রেড যোগ
+                </button>
+              </div>
+              {/* Column headers */}
+              <div className="flex items-center gap-2 px-1">
+                <span className="text-[10px] text-muted-foreground w-20">গ্রেড</span>
+                <span className="text-[10px] text-muted-foreground w-28">স্টক (KG)</span>
+                <span className="text-[10px] text-muted-foreground w-28">রেট (৳/KG)</span>
+                <span className="text-[10px] text-muted-foreground w-20">মোট</span>
+              </div>
+              {gradeRows.map((row, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <select
+                    value={row.grade}
+                    onChange={e => setGradeRows(prev => prev.map((r, idx) => idx === i ? { ...r, grade: e.target.value } : r))}
+                    aria-label="গ্রেড" title="গ্রেড"
+                    className="h-8 w-20 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <input type="number" placeholder="KG" value={row.kg}
+                    onChange={e => setGradeRows(prev => prev.map((r, idx) => idx === i ? { ...r, kg: e.target.value } : r))}
+                    className="w-28 h-8 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <input type="number" placeholder="রেট ৳" value={row.rate}
+                    onChange={e => setGradeRows(prev => prev.map((r, idx) => idx === i ? { ...r, rate: e.target.value } : r))}
+                    className="w-28 h-8 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                  <span className="text-xs text-muted-foreground w-20">
+                    {row.kg && row.rate ? `৳${(parseFloat(row.kg) * parseFloat(row.rate)).toLocaleString()}` : "—"}
+                  </span>
+                  {gradeRows.length > 1 && (
+                    <button type="button" aria-label="Remove row" onClick={() => setGradeRows(prev => prev.filter((_, idx) => idx !== i))} className="text-destructive/60 hover:text-destructive">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <p className="text-xs font-medium text-foreground">
+                মোট: {gradeRows.reduce((s, r) => s + (parseFloat(r.kg) || 0), 0)} KG
+                = ৳{gradeRows.reduce((s, r) => s + (parseFloat(r.kg) || 0) * (parseFloat(r.rate) || 0), 0).toLocaleString()}
+              </p>
+            </div>
+          )}
+
           <button onClick={handleAdd} className="px-4 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
             {t("save")}
           </button>
