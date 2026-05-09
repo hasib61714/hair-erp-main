@@ -15,8 +15,21 @@ const UpdatePassword = () => {
 
   // Supabase puts access_token in the URL hash — wait for auth session to be set
   useEffect(() => {
+    // 1. Check if URL hash has type=recovery (token already in URL)
+    const hash = window.location.hash;
+    if (hash.includes("type=recovery") || hash.includes("access_token")) {
+      setReady(true);
+      return;
+    }
+
+    // 2. Check existing session
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setReady(true);
+    });
+
+    // 3. Listen for PASSWORD_RECOVERY event as fallback
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
         setReady(true);
       }
     });
