@@ -43,7 +43,7 @@ const SalesModule = () => {
   const [productType, setProductType] = useState("two_by_two");
   const [grade, setGrade] = useState('6"'); const [weightKg, setWeightKg] = useState("");
   const [ratePerKg, setRatePerKg] = useState(""); const [advanceAmt, setAdvanceAmt] = useState("");
-  const [gradeRows, setGradeRows] = useState<GradeDetail[]>([{ grade: '12"', kg: 0, rate: 0 }]);
+  const [gradeRows, setGradeRows] = useState<GradeDetail[]>([{ grade: '6"', kg: 0, rate: 0 }]);
   const [gutiWeightKg, setGutiWeightKg] = useState("");
   const [gutiRatePerKg, setGutiRatePerKg] = useState("");
 
@@ -59,7 +59,7 @@ const SalesModule = () => {
 
   const resetForm = () => {
     setBuyerName(""); setBuyerType("BD"); setProductType("two_by_two"); setGrade('6"'); setWeightKg(""); setRatePerKg(""); setAdvanceAmt(""); setEditId(null); setShowForm(false);
-    setGradeRows([{ grade: '12"', kg: 0, rate: 0 }]); setGutiWeightKg(""); setGutiRatePerKg("");
+    setGradeRows([{ grade: '6"', kg: 0, rate: 0 }]); setGutiWeightKg(""); setGutiRatePerKg("");
   };
 
   const isGuti = productType === "guti";
@@ -111,7 +111,7 @@ const SalesModule = () => {
   const handleEdit = (s: Sale) => {
     setEditId(s.id); setBuyerName(s.buyer_name); setBuyerType(s.buyer_type); setProductType(s.product_type || "two_by_two"); setGrade(s.grade);
     setWeightKg(String(s.weight_kg)); setRatePerKg(String(s.rate_per_kg)); setAdvanceAmt(String(s.advance_amount || 0));
-    setGradeRows(s.grade_details?.length > 0 ? s.grade_details : [{ grade: '12"', kg: 0, rate: 0 }]);
+    setGradeRows(s.grade_details?.length > 0 ? s.grade_details : [{ grade: '6"', kg: 0, rate: 0 }]);
     if (s.product_type === "guti") { setGutiWeightKg(String(s.weight_kg)); setGutiRatePerKg(String(s.rate_per_kg)); }
     setShowForm(true);
   };

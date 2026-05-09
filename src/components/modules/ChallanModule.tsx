@@ -41,7 +41,7 @@ const ChallanModule = () => {
   const [buyerCountry, setBuyerCountry] = useState("BD");
   const [challanProductType, setChallanProductType] = useState("two_by_two");
   const [advanceAmt, setAdvanceAmt] = useState(""); const [challanDate, setChallanDate] = useState(new Date().toISOString().split("T")[0]);
-  const [gradeRows, setGradeRows] = useState<GradeDetail[]>([{ grade: '12"', kg: 0, rate: 0, remarks: "" }]);
+  const [gradeRows, setGradeRows] = useState<GradeDetail[]>([{ grade: '6"', kg: 0, rate: 0, remarks: "" }]);
   const [gutiWeightKg, setGutiWeightKg] = useState("");
   const [description, setDescription] = useState("");
   const [noteRi, setNoteRi] = useState(""); const [noteChhat, setNoteChhat] = useState(""); const [noteGiti, setNoteGiti] = useState("");
@@ -62,7 +62,7 @@ const ChallanModule = () => {
 
   const resetForm = () => {
     setChallanNo(""); setBuyerName(""); setBuyerCountry("BD"); setChallanProductType("two_by_two"); setAdvanceAmt(""); setChallanDate(new Date().toISOString().split("T")[0]);
-    setGradeRows([{ grade: '12"', kg: 0, rate: 0, remarks: "" }]); setGutiWeightKg(""); setEditId(null); setShowForm(false);
+    setGradeRows([{ grade: '6"', kg: 0, rate: 0, remarks: "" }]); setGutiWeightKg(""); setEditId(null); setShowForm(false);
     setDescription(""); setNoteRi(""); setNoteChhat(""); setNoteGiti("");
   };
 
@@ -114,7 +114,7 @@ const ChallanModule = () => {
     if (c.product_type === "guti" && c.grade_details.length > 0) {
       setGutiWeightKg(String(c.grade_details[0]?.kg || 0));
     } else {
-      setGradeRows(c.grade_details.length > 0 ? c.grade_details : [{ grade: '12"', kg: 0, rate: 0, remarks: "" }]);
+      setGradeRows(c.grade_details.length > 0 ? c.grade_details : [{ grade: '6"', kg: 0, rate: 0, remarks: "" }]);
     }
     setShowForm(true);
   };
