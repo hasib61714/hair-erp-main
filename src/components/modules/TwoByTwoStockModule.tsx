@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Pencil, Scissors, Trash2 } from "lucide-react";
+import { Plus, Pencil, Scissors, Trash2, Minus } from "lucide-react";
 import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -184,11 +184,16 @@ const TwoByTwoStockModule = () => {
 
           <p className="text-xs text-muted-foreground mb-2">{t("gradeWiseBreakdown")} ({t("totalOutput")}: {totalOutputCalc} KG)</p>
           {gradeRows.map((gr, i) => (
-            <div key={i} className="grid grid-cols-2 gap-3 mb-2">
+            <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-3 mb-2">
               <select aria-label="Grade" value={gr.grade} onChange={e => updateGradeRow(i, "grade", e.target.value)} className="h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground">
                 {GRADES.map(g => <option key={g}>{g}</option>)}
               </select>
               <input type="number" placeholder="KG" value={gr.kg || ""} onChange={e => updateGradeRow(i, "kg", e.target.value)} className="h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground" />
+              {gradeRows.length > 1 && (
+                <button type="button" aria-label="Remove grade row" onClick={() => setGradeRows(gradeRows.filter((_, j) => j !== i))} className="h-9 w-9 rounded-lg border border-destructive/30 flex items-center justify-center hover:bg-destructive/10 transition-colors">
+                  <Minus className="w-3.5 h-3.5 text-destructive" />
+                </button>
+              )}
             </div>
           ))}
           <button type="button" onClick={() => { const G=['6"','8"','10"','12"','14"','16"','18"','20"','22"','24"','26"','28"','30"','32"']; const last=gradeRows[gradeRows.length-1]?.grade; const next=G[Math.min(G.indexOf(last)+1,G.length-1)]??'6"'; setGradeRows([...gradeRows,{grade:next,kg:0}]); }} className="text-xs text-primary mb-4">+ {t("grade")} যোগ করুন</button>
