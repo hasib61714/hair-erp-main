@@ -154,6 +154,14 @@
     background: var(--gradient-card);
   }
 
+  .bg-gradient-sidebar {
+    background: var(--gradient-sidebar);
+  }
+
+  .bar-fill {
+    width: var(--bar-width, 0%);
+  }
+
   .shadow-card {
     box-shadow: var(--shadow-card);
   }

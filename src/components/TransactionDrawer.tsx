@@ -190,11 +190,13 @@ const TransactionDrawer = ({ open, onClose, personName, personType }: Transactio
             <div>
               <label className="text-xs text-muted-foreground block mb-1">{t("fromDate")}</label>
               <input type="date" value={fromDate} onChange={e => setFromDate(e.target.value)}
+                title={t("fromDate")} aria-label={t("fromDate")}
                 className="w-full h-8 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground block mb-1">{t("toDate")}</label>
               <input type="date" value={toDate} onChange={e => setToDate(e.target.value)}
+                title={t("toDate")} aria-label={t("toDate")}
                 className="w-full h-8 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground" />
             </div>
           </div>

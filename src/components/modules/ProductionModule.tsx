@@ -6,6 +6,7 @@ import { Plus, ArrowRight, Pencil, Trash2, Factory } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import PrintToolbar from "@/components/PrintToolbar";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 type Batch = {
   id: string; batch_code: string; factory_id: string | null; stage: string;
@@ -24,6 +25,7 @@ const stageLabels: Record<string, { bn: string; en: string; color: string }> = {
 const ProductionModule = () => {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const { can_edit, can_delete } = usePermissions("production");
   const [showForm, setShowForm] = useState(false);
   const [batches, setBatches] = useState<Batch[]>([]);
@@ -80,7 +82,7 @@ const ProductionModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("নিশ্চিত করুন — এই ব্যাচ মুছে ফেলা হবে?")) return;
+    if (!(await confirm("নিশ্চিত করুন — এই ব্যাচ মুছে ফেলা হবে?"))) return;
     const { error } = await supabase.from("production_batches").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("ডিলিট হয়েছে"); fetchData();
@@ -106,32 +108,32 @@ const ProductionModule = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("batchCode")}</label>
-              <input value={batchCode} onChange={e => setBatchCode(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={batchCode} onChange={e => setBatchCode(e.target.value)} title={t("batchCode")} aria-label={t("batchCode")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("factory")}</label>
-              <select value={factoryId} onChange={e => setFactoryId(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={factoryId} onChange={e => setFactoryId(e.target.value)} title={t("factory")} aria-label={t("factory")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="">—</option>
                 {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("stage")}</label>
-              <select value={stage} onChange={e => setStage(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={stage} onChange={e => setStage(e.target.value)} title={t("stage")} aria-label={t("stage")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 {Object.entries(stageLabels).map(([k, v]) => <option key={k} value={k}>{v[lang]}</option>)}
               </select>
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("inputWeight")}</label>
-              <input type="number" value={inputWeight} onChange={e => setInputWeight(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input type="number" value={inputWeight} onChange={e => setInputWeight(e.target.value)} title={t("inputWeight")} aria-label={t("inputWeight")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("outputWeight")}</label>
-              <input type="number" value={outputWeight} onChange={e => setOutputWeight(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input type="number" value={outputWeight} onChange={e => setOutputWeight(e.target.value)} title={t("outputWeight")} aria-label={t("outputWeight")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("status")}</label>
-              <select value={status} onChange={e => setStatus(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={status} onChange={e => setStatus(e.target.value)} title={t("status")} aria-label={t("status")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="in_progress">{t("inProgress")}</option>
                 <option value="complete">{t("complete")}</option>
               </select>
@@ -192,8 +194,8 @@ const ProductionModule = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    {can_edit && <button onClick={(ev) => { ev.stopPropagation(); handleEdit(b); }} className="p-1 rounded hover:bg-secondary"><Pencil className="w-4 h-4 text-muted-foreground" /></button>}
-                    {can_delete && <button onClick={(ev) => { ev.stopPropagation(); handleDelete(b.id); }} className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-4 h-4 text-destructive/70" /></button>}
+                    {can_edit && <button onClick={(ev) => { ev.stopPropagation(); handleEdit(b); }} title="Edit" aria-label="Edit batch" className="p-1 rounded hover:bg-secondary"><Pencil className="w-4 h-4 text-muted-foreground" /></button>}
+                    {can_delete && <button onClick={(ev) => { ev.stopPropagation(); handleDelete(b.id); }} title="Delete" aria-label="Delete batch" className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-4 h-4 text-destructive/70" /></button>}
                   </div>
                 </div>
 

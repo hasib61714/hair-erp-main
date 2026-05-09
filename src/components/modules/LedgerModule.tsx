@@ -318,7 +318,7 @@ const LedgerModule = () => {
                 {selectedType === "receivable" ? t("weWillGet") : t("weWillPay")} — {t("gradeDetails")}
               </p>
             </div>
-            <button onClick={() => setSelectedPerson(null)} className="p-1.5 rounded-lg hover:bg-secondary">
+            <button onClick={() => setSelectedPerson(null)} title="Close" aria-label="Close" className="p-1.5 rounded-lg hover:bg-secondary">
               <X className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>

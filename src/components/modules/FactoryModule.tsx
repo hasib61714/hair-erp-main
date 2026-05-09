@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Factory, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { usePermissions } from "@/hooks/usePermissions";
 
 type FactoryRow = {
@@ -13,6 +14,7 @@ type FactoryRow = {
 const FactoryModule = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const { can_edit, can_delete } = usePermissions("factories");
   const [showForm, setShowForm] = useState(false);
   const [data, setData] = useState<FactoryRow[]>([]);
@@ -46,7 +48,7 @@ const FactoryModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("নিশ্চিত করুন — এই কারখানা মুছে ফেলা হবে?")) return;
+    if (!(await confirm("নিশ্চিত করুন — এই কারখানা মুছে ফেলা হবে?"))) return;
     const { error } = await supabase.from("factories").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("ডিলিট হয়েছে"); fetchData();
@@ -70,15 +72,15 @@ const FactoryModule = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("factoryName")}</label>
-              <input value={name} onChange={e => setName(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={name} onChange={e => setName(e.target.value)} title={t("factoryName")} aria-label={t("factoryName")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("location")}</label>
-              <input value={location} onChange={e => setLocation(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={location} onChange={e => setLocation(e.target.value)} title={t("location")} aria-label={t("location")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("factoryType")}</label>
-              <select value={factoryType} onChange={e => setFactoryType(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={factoryType} onChange={e => setFactoryType(e.target.value)} title={t("factoryType")} aria-label={t("factoryType")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="head">{t("headOffice")}</option>
                 <option value="branch">{t("branch")}</option>
               </select>
@@ -102,8 +104,8 @@ const FactoryModule = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`w-2.5 h-2.5 rounded-full ${f.is_active ? "bg-success animate-pulse-gold" : "bg-muted-foreground"}`} />
-                  {can_edit && <button onClick={() => handleEdit(f)} className="p-1 rounded hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>}
-                  {can_delete && <button onClick={() => handleDelete(f.id)} className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive/70" /></button>}
+                  {can_edit && <button onClick={() => handleEdit(f)} title="Edit" aria-label="Edit factory" className="p-1 rounded hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>}
+                  {can_delete && <button onClick={() => handleDelete(f.id)} title="Delete" aria-label="Delete factory" className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive/70" /></button>}
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mb-4">{f.factory_type === "head" ? t("headOffice") : t("branch")} — {f.location}</p>

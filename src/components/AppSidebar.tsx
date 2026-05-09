@@ -69,10 +69,9 @@ const AppSidebar = ({ activeModule, onModuleChange, onClose }: AppSidebarProps) 
   return (
     <aside
       className={cn(
-        "h-screen flex flex-col border-r border-sidebar-border transition-all duration-300",
+        "h-screen flex flex-col border-r border-sidebar-border transition-all duration-300 bg-gradient-sidebar",
         collapsed ? "w-[68px]" : "w-[260px]"
       )}
-      style={{ background: "var(--gradient-sidebar)" }}
     >
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">

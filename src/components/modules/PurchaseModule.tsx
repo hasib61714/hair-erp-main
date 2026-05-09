@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import TransactionDrawer from "@/components/TransactionDrawer";
 import PrintToolbar from "@/components/PrintToolbar";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { useState } from "react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -102,6 +103,7 @@ const getCurrencySymbol = (currency: string) =>
 const PurchaseModule = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const { can_edit, can_delete } = usePermissions("purchase");
   const queryClient = useQueryClient();
 
@@ -243,7 +245,7 @@ const PurchaseModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?")) return;
+    if (!(await confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?"))) return;
     const { error } = await supabase.from("purchases").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("ডিলিট হয়েছে");

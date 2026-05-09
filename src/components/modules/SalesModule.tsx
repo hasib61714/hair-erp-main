@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import TransactionDrawer from "@/components/TransactionDrawer";
 import PrintToolbar from "@/components/PrintToolbar";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 type GradeDetail = { grade: string; kg: number; rate: number };
 type Sale = {
@@ -28,6 +29,7 @@ const gradeOptions = ['6"','8"','10"','12"','14"','16"','18"','20"','22"','24"',
 const SalesModule = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const { can_edit, can_delete } = usePermissions("sales");
   const [showForm, setShowForm] = useState(false);
   const [data, setData] = useState<Sale[]>([]);
@@ -115,7 +117,7 @@ const SalesModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?")) return;
+    if (!(await confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?"))) return;
     const { error } = await supabase.from("sales").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("ডিলিট হয়েছে"); fetchData();
@@ -161,7 +163,7 @@ const SalesModule = () => {
         <div className="rounded-xl border border-primary/20 p-6 bg-gradient-card shadow-card animate-slide-in">
           <h3 className="text-sm font-semibold text-foreground mb-4">{editId ? t("edit") : t("addSale")}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div><label className="text-xs text-muted-foreground mb-1 block">{t("buyerName")}</label><input value={buyerName} onChange={e => setBuyerName(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+            <div><label className="text-xs text-muted-foreground mb-1 block">{t("buyerName")}</label><input value={buyerName} onChange={e => setBuyerName(e.target.value)} title={t("buyerName")} aria-label={t("buyerName")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("buyerCountry")}</label>
               <select aria-label={t("buyerCountry")} value={buyerType} onChange={e => setBuyerType(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 {countryOptions.map(c => <option key={c.value} value={c.value}>{t(c.labelKey)}</option>)}

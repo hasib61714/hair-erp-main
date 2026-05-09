@@ -54,7 +54,7 @@ const AnalyticsModule = () => {
                 <span className="text-xs text-success font-medium">{f.efficiency}%</span>
               </div>
               <div className="h-3 bg-secondary/50 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-gold rounded-full transition-all" style={{ width: `${f.efficiency}%` }} />
+                <div className="h-full bg-gradient-gold rounded-full transition-all bar-fill" style={{ "--bar-width": `${f.efficiency}%` } as React.CSSProperties} />
               </div>
             </div>
           ))}

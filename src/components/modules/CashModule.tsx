@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Wallet, ArrowDownCircle, ArrowUpCircle, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import PrintToolbar from "@/components/PrintToolbar";
 
@@ -21,6 +22,7 @@ type CashEntry = {
 const CashModule = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const { can_edit, can_delete } = usePermissions("cash");
   const [showForm, setShowForm] = useState(false);
   const [entries, setEntries] = useState<CashEntry[]>([]);
@@ -85,7 +87,7 @@ const CashModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?")) return;
+    if (!(await confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?"))) return;
     const { error } = await supabase.from("cash_entries").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("ডিলিট হয়েছে"); fetchData();
@@ -133,7 +135,7 @@ const CashModule = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("type")}</label>
-              <select value={entryType} onChange={e => setEntryType(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={entryType} onChange={e => setEntryType(e.target.value)} title={t("type")} aria-label={t("type")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="cash_in">{t("cashIn")}</option>
                 <option value="cash_out">{t("cashOut")}</option>
               </select>
@@ -144,7 +146,7 @@ const CashModule = () => {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("paymentMethod")}</label>
-              <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)} title={t("paymentMethod")} aria-label={t("paymentMethod")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="cash">{t("nagadCash")}</option>
                 <option value="bank">{t("bankTransfer")}</option>
               </select>
@@ -155,15 +157,15 @@ const CashModule = () => {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("description")}</label>
-              <input value={description} onChange={e => setDescription(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={description} onChange={e => setDescription(e.target.value)} title={t("description")} aria-label={t("description")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("amount")}</label>
-              <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input type="number" value={amount} onChange={e => setAmount(e.target.value)} title={t("amount")} aria-label={t("amount")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("date")}</label>
-              <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input type="date" value={entryDate} onChange={e => setEntryDate(e.target.value)} title={t("date")} aria-label={t("date")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
           </div>
           <div className="flex gap-3 mt-4">
@@ -205,8 +207,8 @@ const CashModule = () => {
                   <span className={`text-sm font-bold ${e.entry_type === "cash_in" ? "text-success" : "text-destructive"}`}>
                     {e.entry_type === "cash_in" ? "+" : "-"}৳{Number(e.amount).toLocaleString()}
                   </span>
-                  {can_edit && <button onClick={(ev) => { ev.stopPropagation(); handleEdit(e); }} className="p-1 rounded hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>}
-                  {can_delete && <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive/70" /></button>}
+                  {can_edit && <button onClick={(ev) => { ev.stopPropagation(); handleEdit(e); }} title="Edit" aria-label="Edit entry" className="p-1 rounded hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>}
+                  {can_delete && <button onClick={(ev) => { ev.stopPropagation(); handleDelete(e.id); }} title="Delete" aria-label="Delete entry" className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive/70" /></button>}
                 </div>
               </div>
             ))}

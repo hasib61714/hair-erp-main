@@ -32,9 +32,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     let mounted = true;
 
-    // Immediately resolve the initial session so the loading spinner doesn't hang
-    // when onAuthStateChange is slow to fire on first load.
+    // Timeout fallback: if Supabase doesn't respond in 8s, stop loading
+    const timeoutId = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 8000);
+
     supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
+      clearTimeout(timeoutId);
       if (!mounted) return;
       setSession(initialSession);
       setUser(initialSession?.user ?? null);
@@ -42,6 +46,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const fetchedRole = await fetchRole(initialSession.user.id);
         if (mounted) setRole(fetchedRole);
       }
+      if (mounted) setLoading(false);
+    }).catch(() => {
+      clearTimeout(timeoutId);
       if (mounted) setLoading(false);
     });
 

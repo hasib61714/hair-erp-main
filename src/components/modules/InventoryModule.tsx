@@ -137,7 +137,7 @@ const InventoryModule = () => {
             </div>
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">{t("productType")}</label>
-              <select value={newProductType} onChange={e => setNewProductType(e.target.value)} className={inputClass}>
+              <select value={newProductType} onChange={e => setNewProductType(e.target.value)} aria-label={t("productType")} title={t("productType")} className={inputClass}>
                 {PRODUCT_TYPES.map(p => <option key={p.value} value={p.value}>{t(p.labelKey)}</option>)}
               </select>
             </div>
@@ -151,7 +151,7 @@ const InventoryModule = () => {
             </div>
             <div>
               <label className="text-[11px] text-muted-foreground mb-1 block">{t("factory")}</label>
-              <select value={newFactory} onChange={e => setNewFactory(e.target.value)} className={inputClass}>
+              <select value={newFactory} onChange={e => setNewFactory(e.target.value)} aria-label={t("factory")} title={t("factory")} className={inputClass}>
                 <option value="">—</option>
                 {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
@@ -193,10 +193,12 @@ const InventoryModule = () => {
                         value={editFactoryName}
                         onChange={e => setEditFactoryName(e.target.value)}
                         className="h-7 w-32 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground"
+                        title="Factory name"
+                        aria-label="Factory name"
                         autoFocus
                       />
-                      <button onClick={handleFactoryNameSave} className="p-1 rounded hover:bg-success/10"><Check className="w-3.5 h-3.5 text-success" /></button>
-                      <button onClick={() => setEditFactoryId(null)} className="p-1 rounded hover:bg-secondary"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                      <button onClick={handleFactoryNameSave} title="Save" aria-label="Save factory name" className="p-1 rounded hover:bg-success/10"><Check className="w-3.5 h-3.5 text-success" /></button>
+                      <button onClick={() => setEditFactoryId(null)} title="Cancel" aria-label="Cancel edit" className="p-1 rounded hover:bg-secondary"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
                     </div>
                   ) : (
                     <h3 className="text-sm font-semibold text-foreground">{summary.name}</h3>
@@ -206,6 +208,8 @@ const InventoryModule = () => {
                   <button
                     onClick={() => { setEditFactoryId(fId); setEditFactoryName(summary.name); }}
                     className="p-1 rounded hover:bg-secondary"
+                    title="Edit factory name"
+                    aria-label="Edit factory name"
                   >
                     <Pencil className="w-3 h-3 text-muted-foreground" />
                   </button>
@@ -285,10 +289,10 @@ const InventoryModule = () => {
                       </td>
                       <td className="py-3 pr-3 text-xs text-foreground">{getFactoryName(g.factory_id)}</td>
                       <td className="py-3 pr-3 text-xs text-right">
-                        {isEditing ? <input type="number" value={editStock} onChange={e => setEditStock(e.target.value)} className="w-20 h-7 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground text-right" /> : <span className={Number(g.stock_kg) < 5 ? "text-destructive" : "text-foreground"}>{g.stock_kg}</span>}
+                        {isEditing ? <input type="number" value={editStock} onChange={e => setEditStock(e.target.value)} aria-label="Stock KG" title="Stock KG" className="w-20 h-7 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground text-right" /> : <span className={Number(g.stock_kg) < 5 ? "text-destructive" : "text-foreground"}>{g.stock_kg}</span>}
                       </td>
                       <td className="py-3 pr-3 text-xs text-right">
-                        {isEditing ? <input type="number" value={editRate} onChange={e => setEditRate(e.target.value)} className="w-20 h-7 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground text-right" /> : <span className="text-muted-foreground">৳{Number(g.rate_per_kg).toLocaleString()}</span>}
+                        {isEditing ? <input type="number" value={editRate} onChange={e => setEditRate(e.target.value)} aria-label="Rate per KG" title="Rate per KG" className="w-20 h-7 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground text-right" /> : <span className="text-muted-foreground">৳{Number(g.rate_per_kg).toLocaleString()}</span>}
                       </td>
                       <td className="py-3 pr-3 text-xs text-right font-medium text-foreground">৳{val.toLocaleString()}</td>
                       <td className="py-3 text-right">
@@ -299,8 +303,8 @@ const InventoryModule = () => {
                           </div>
                         ) : (
                           <div className="flex justify-end gap-1">
-                            <button onClick={() => { setEditId(g.id); setEditStock(String(g.stock_kg)); setEditRate(String(g.rate_per_kg)); }} className="p-1 rounded hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
-                            <button onClick={() => handleDelete(g.id)} className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive/70" /></button>
+                            <button onClick={() => { setEditId(g.id); setEditStock(String(g.stock_kg)); setEditRate(String(g.rate_per_kg)); }} title="Edit" aria-label="Edit row" className="p-1 rounded hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                            <button onClick={() => handleDelete(g.id)} title="Delete" aria-label="Delete row" className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive/70" /></button>
                           </div>
                         )}
                       </td>

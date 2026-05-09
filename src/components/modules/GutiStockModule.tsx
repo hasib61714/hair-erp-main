@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Plus, Pencil, Trash2, PlusCircle, XCircle, Package } from "lucide-react";
 import { toast } from "sonner";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import type { Json } from "@/integrations/supabase/types";
 import { usePermissions } from "@/hooks/usePermissions";
 import PrintToolbar from "@/components/PrintToolbar";
@@ -25,6 +26,7 @@ type GutiEntry = {
 const GutiStockModule = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const { can_edit, can_delete } = usePermissions("guti_stock");
   const [data, setData] = useState<GutiEntry[]>([]);
   const [factories, setFactories] = useState<FactoryRow[]>([]);
@@ -105,7 +107,7 @@ const GutiStockModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?")) return;
+    if (!(await confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?"))) return;
     const { error } = await supabase.from("guti_stock").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("ডিলিট হয়েছে"); fetchData();

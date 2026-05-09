@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { usePermissions } from "@/hooks/usePermissions";
 import PrintToolbar from "@/components/PrintToolbar";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 type Transfer = {
   id: string; transfer_date: string; from_factory_id: string | null; to_factory_id: string | null;
@@ -18,6 +19,7 @@ type FactoryRow = { id: string; name: string; location: string };
 const TransferModule = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const { settings: company } = useCompanySettings();
   const { can_edit, can_delete } = usePermissions("transfers");
   const [showForm, setShowForm] = useState(false);
@@ -85,7 +87,7 @@ const TransferModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("নিশ্চিত করুন — এই ট্রান্সফার মুছে ফেলা হবে?")) return;
+    if (!(await confirm("নিশ্চিত করুন — এই ট্রান্সফার মুছে ফেলা হবে?"))) return;
     const { error } = await supabase.from("transfers").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("ডিলিট হয়েছে"); fetchData();
@@ -188,28 +190,28 @@ const TransferModule = () => {
           <h3 className="text-sm font-semibold text-foreground mb-4">{editId ? t("edit") : t("newTransfer")}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("from")}</label>
-              <select value={fromId} onChange={e => setFromId(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={fromId} onChange={e => setFromId(e.target.value)} title={t("from")} aria-label={t("from")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="">—</option>
                 {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("to")}</label>
-              <select value={toId} onChange={e => setToId(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={toId} onChange={e => setToId(e.target.value)} title={t("to")} aria-label={t("to")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="">—</option>
                 {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("transferWeight")}</label>
-              <input type="number" value={weightKg} onChange={e => setWeightKg(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input type="number" value={weightKg} onChange={e => setWeightKg(e.target.value)} title={t("transferWeight")} aria-label={t("transferWeight")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("receivedWeight")}</label>
-              <input type="number" value={receivedKg} onChange={e => setReceivedKg(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input type="number" value={receivedKg} onChange={e => setReceivedKg(e.target.value)} title={t("receivedWeight")} aria-label={t("receivedWeight")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("date")}</label>
-              <input type="date" value={transferDate} onChange={e => setTransferDate(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input type="date" value={transferDate} onChange={e => setTransferDate(e.target.value)} title={t("date")} aria-label={t("date")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("status")}</label>
-              <select value={status} onChange={e => setStatus(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={status} onChange={e => setStatus(e.target.value)} title={t("status")} aria-label={t("status")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="in_transit">{t("inTransit")}</option><option value="received">{t("received")}</option>
               </select>
             </div>
@@ -279,8 +281,8 @@ const TransferModule = () => {
                   </div>
                   <div className="flex items-center gap-1">
                     <button onClick={(ev) => { ev.stopPropagation(); handlePrintBookingSlip(tr); }} className="p-1 rounded hover:bg-secondary" title={t("printBookingSlip")}><Printer className="w-4 h-4 text-primary" /></button>
-                    {can_edit && <button onClick={(ev) => { ev.stopPropagation(); handleEdit(tr); }} className="p-1 rounded hover:bg-secondary"><Pencil className="w-4 h-4 text-muted-foreground" /></button>}
-                    {can_delete && <button onClick={(ev) => { ev.stopPropagation(); handleDelete(tr.id); }} className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-4 h-4 text-destructive/70" /></button>}
+                    {can_edit && <button onClick={(ev) => { ev.stopPropagation(); handleEdit(tr); }} title="Edit" aria-label="Edit transfer" className="p-1 rounded hover:bg-secondary"><Pencil className="w-4 h-4 text-muted-foreground" /></button>}
+                    {can_delete && <button onClick={(ev) => { ev.stopPropagation(); handleDelete(tr.id); }} title="Delete" aria-label="Delete transfer" className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-4 h-4 text-destructive/70" /></button>}
                   </div>
                 </div>
 

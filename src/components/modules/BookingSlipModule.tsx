@@ -177,22 +177,22 @@ const BookingSlipModule = () => {
           <h3 className="text-sm font-semibold text-foreground mb-4">{editId ? t("edit") : t("newBookingSlip")}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("from")}</label>
-              <select value={fromId} onChange={e => setFromId(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={fromId} onChange={e => setFromId(e.target.value)} title={t("from")} aria-label={t("from")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="">—</option>
                 {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("to")}</label>
-              <select value={toId} onChange={e => setToId(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={toId} onChange={e => setToId(e.target.value)} title={t("to")} aria-label={t("to")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="">—</option>
                 {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("transferWeight")}</label>
-              <input type="number" value={weightKg} onChange={e => setWeightKg(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input type="number" value={weightKg} onChange={e => setWeightKg(e.target.value)} title={t("transferWeight")} aria-label={t("transferWeight")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("date")}</label>
-              <input type="date" value={transferDate} onChange={e => setTransferDate(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input type="date" value={transferDate} onChange={e => setTransferDate(e.target.value)} title={t("date")} aria-label={t("date")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
           </div>
 
@@ -256,7 +256,7 @@ const BookingSlipModule = () => {
                     <td className="py-3 pr-3 text-xs font-medium text-foreground">{tr.weight_kg} KG</td>
                     <td className="py-3 pr-3 flex items-center gap-1">
                       <button onClick={(ev) => { ev.stopPropagation(); handlePrint(tr); }} className="p-1 rounded hover:bg-secondary" title={t("printBookingSlip")}><Printer className="w-3.5 h-3.5 text-primary" /></button>
-                      <button onClick={(ev) => { ev.stopPropagation(); handleEdit(tr); }} className="p-1 rounded hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                      <button onClick={(ev) => { ev.stopPropagation(); handleEdit(tr); }} title="Edit" aria-label="Edit booking slip" className="p-1 rounded hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
                     </td>
                   </tr>
                 ))}

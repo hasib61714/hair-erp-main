@@ -5,10 +5,12 @@ import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Truck, Plus, Edit2, Trash2, Printer, CreditCard, X, Eye } from "lucide-react";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 const SupplierModule = () => {
   const { lang } = useLanguage();
   const { user, role } = useAuth();
+  const confirm = useConfirm();
   const { settings } = useCompanySettings();
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [purchases, setPurchases] = useState<any[]>([]);
@@ -61,7 +63,7 @@ const SupplierModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm(lang === "bn" ? "মুছে ফেলতে চান?" : "Delete?")) return;
+    if (!(await confirm(lang === "bn" ? "মুছে ফেলতে চান?" : "Delete?"))) return;
     await supabase.from("suppliers").delete().eq("id", id);
     toast.success(lang === "bn" ? "মুছে ফেলা হয়েছে" : "Deleted");
     fetchData();
@@ -238,6 +240,8 @@ const SupplierModule = () => {
             <input placeholder={lang === "bn" ? "ঠিকানা" : "Address"} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })}
               className="h-9 rounded-lg border border-border bg-background px-3 text-sm" />
             <select value={form.country} onChange={e => setForm({ ...form, country: e.target.value })}
+              aria-label={lang === "bn" ? "দেশ" : "Country"}
+              title={lang === "bn" ? "দেশ" : "Country"}
               className="h-9 rounded-lg border border-border bg-background px-3 text-sm">
               <option value="BD">{lang === "bn" ? "বাংলাদেশ" : "Bangladesh"}</option>
               <option value="IN">{lang === "bn" ? "ভারত" : "India"}</option>
@@ -265,15 +269,19 @@ const SupplierModule = () => {
               <CreditCard className="w-4 h-4 text-primary" />
               {lang === "bn" ? "পেমেন্ট যোগ করুন" : "Add Payment"} — {suppliers.find(s => s.id === paymentSupplierId)?.name}
             </h3>
-            <button onClick={() => setShowPaymentForm(false)}><X className="w-4 h-4 text-muted-foreground" /></button>
+            <button onClick={() => setShowPaymentForm(false)} title="Close" aria-label="Close payment form"><X className="w-4 h-4 text-muted-foreground" /></button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <input type="number" placeholder={lang === "bn" ? "পরিমাণ (৳) *" : "Amount (৳) *"} value={paymentForm.amount}
               onChange={e => setPaymentForm({ ...paymentForm, amount: e.target.value })}
               className="h-9 rounded-lg border border-border bg-background px-3 text-sm" />
             <input type="date" value={paymentForm.payment_date} onChange={e => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
+              aria-label={lang === "bn" ? "পেমেন্টের তারিখ" : "Payment date"}
+              title={lang === "bn" ? "পেমেন্টের তারিখ" : "Payment date"}
               className="h-9 rounded-lg border border-border bg-background px-3 text-sm" />
             <select value={paymentForm.payment_method} onChange={e => setPaymentForm({ ...paymentForm, payment_method: e.target.value })}
+              aria-label={lang === "bn" ? "পেমেন্ট পদ্ধতি" : "Payment method"}
+              title={lang === "bn" ? "পেমেন্ট পদ্ধতি" : "Payment method"}
               className="h-9 rounded-lg border border-border bg-background px-3 text-sm">
               <option value="cash">{lang === "bn" ? "নগদ" : "Cash"}</option>
               <option value="bank">{lang === "bn" ? "ব্যাংক" : "Bank"}</option>
@@ -330,6 +338,7 @@ const SupplierModule = () => {
                           <button onClick={e => { e.stopPropagation(); handleEdit(s); }} title="Edit"
                             className="p-1 hover:bg-secondary rounded"><Edit2 className="w-3 h-3" /></button>
                           {role === "admin" && <button onClick={e => { e.stopPropagation(); handleDelete(s.id); }}
+                            title={lang === "bn" ? "মুছুন" : "Delete"} aria-label="Delete supplier"
                             className="p-1 hover:bg-destructive/10 rounded text-destructive"><Trash2 className="w-3 h-3" /></button>}
                         </div>
                       </td>

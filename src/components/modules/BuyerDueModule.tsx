@@ -144,6 +144,8 @@ const BuyerDueModule = () => {
                 <input type="number" placeholder={lang === "bn" ? "পরিমাণ" : "Amount"} value={payAmount} onChange={e => setPayAmount(e.target.value)}
                   className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm" />
                 <select value={payMethod} onChange={e => setPayMethod(e.target.value)}
+                  aria-label={lang === "bn" ? "পেমেন্ট পদ্ধতি" : "Payment method"}
+                  title={lang === "bn" ? "পেমেন্ট পদ্ধতি" : "Payment method"}
                   className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm">
                   <option value="cash">{lang === "bn" ? "নগদ" : "Cash"}</option>
                   <option value="bank">{lang === "bn" ? "ব্যাংক" : "Bank"}</option>

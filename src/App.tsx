@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ConfirmProvider } from "@/contexts/ConfirmContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -46,6 +47,7 @@ const App = () => (
       <LanguageProvider>
         <AuthProvider>
           <TooltipProvider>
+            <ConfirmProvider>
             <Toaster />
             <Sonner />
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -55,6 +57,7 @@ const App = () => (
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
+            </ConfirmProvider>
           </TooltipProvider>
         </AuthProvider>
       </LanguageProvider>

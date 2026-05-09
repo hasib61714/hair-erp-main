@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { FileText, Plus, Pencil, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import type { Json } from "@/integrations/supabase/types";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -27,6 +28,7 @@ const countryOptions = [
 const ChallanModule = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const { settings: company } = useCompanySettings();
   const { can_edit, can_delete } = usePermissions("challan");
   const [data, setData] = useState<Challan[]>([]);
@@ -118,7 +120,7 @@ const ChallanModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("নিশ্চিত করুন — এই চালান মুছে ফেলা হবে?")) return;
+    if (!(await confirm("নিশ্চিত করুন — এই চালান মুছে ফেলা হবে?"))) return;
     const { error } = await supabase.from("challans").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("ডিলিট হয়েছে"); fetchData();

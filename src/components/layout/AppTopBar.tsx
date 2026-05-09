@@ -207,6 +207,8 @@ const AppTopBar = ({ activeModule, onModuleChange, onOpenMobileMenu }: Props) =>
             <button
               onClick={() => { setSearchQuery(""); setShowSearchResults(false); }}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              title="Clear search"
+              aria-label="Clear search"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -247,6 +249,8 @@ const AppTopBar = ({ activeModule, onModuleChange, onOpenMobileMenu }: Props) =>
             accept="image/*"
             onChange={handleAvatarUpload}
             className="hidden"
+            aria-label="Upload avatar"
+            title="Upload avatar"
           />
           <button
             onClick={() => setShowAvatarMenu(prev => !prev)}

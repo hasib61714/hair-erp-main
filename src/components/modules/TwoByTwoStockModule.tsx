@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { usePermissions } from "@/hooks/usePermissions";
 import PrintToolbar from "@/components/PrintToolbar";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 type GradeRow = { grade: string; kg: number };
 type Entry = {
@@ -22,6 +23,7 @@ const GRADES = ['6"','8"','10"','12"','14"','16"','18"','20"','22"','24"','26"',
 const TwoByTwoStockModule = () => {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const { can_edit, can_delete } = usePermissions("twobytwo_stock");
   const [data, setData] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,7 +92,7 @@ const TwoByTwoStockModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?")) return;
+    if (!(await confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?"))) return;
     const { error } = await supabase.from("twobytwo_entries").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("ডিলিট হয়েছে"); fetchData();
@@ -169,7 +171,7 @@ const TwoByTwoStockModule = () => {
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("productType")}</label>
-              <select value={productType} onChange={e => setProductType(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select value={productType} onChange={e => setProductType(e.target.value)} title={t("productType")} aria-label={t("productType")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                 <option value="two_by_two">{t("twobytwoProduct")}</option>
                 <option value="kachi">{t("kachiProduct")}</option>
               </select>
@@ -194,11 +196,11 @@ const TwoByTwoStockModule = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("chhat")} (KG)</label>
-              <input type="number" value={chhatKg} onChange={e => setChhatKg(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input type="number" value={chhatKg} onChange={e => setChhatKg(e.target.value)} title={t("chhat")} aria-label={t("chhat")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
             <div>
               <label className="text-xs text-muted-foreground mb-1 block">{t("remand")} (KG)</label>
-              <input type="number" value={remandKg} onChange={e => setRemandKg(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input type="number" value={remandKg} onChange={e => setRemandKg(e.target.value)} title={t("remand")} aria-label={t("remand")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
             </div>
           </div>
 

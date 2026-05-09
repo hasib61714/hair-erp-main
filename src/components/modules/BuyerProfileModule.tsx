@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Plus, Pencil, Trash2, MessageCircle, Search } from "lucide-react";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 type Buyer = {
   id: string;
@@ -32,6 +33,7 @@ const BuyerProfileModule = () => {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
   const { can_edit, can_delete } = usePermissions("sales");
+  const confirm = useConfirm();
   const [buyers, setBuyers] = useState<Buyer[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -88,7 +90,7 @@ const BuyerProfileModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm(lang === "bn" ? "নিশ্চিত করুন — এই বায়ার মুছে ফেলা হবে?" : "Confirm delete this buyer?")) return;
+    if (!(await confirm(lang === "bn" ? "নিশ্চিত করুন — এই বায়ার মুছে ফেলা হবে?" : "Confirm delete this buyer?"))) return;
     const { error } = await supabase.from("buyers").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success(t("deleted")); fetchBuyers();
@@ -151,18 +153,18 @@ const BuyerProfileModule = () => {
         <div className="rounded-xl border border-primary/20 p-6 bg-gradient-card shadow-card animate-slide-in">
           <h3 className="text-sm font-semibold text-foreground mb-4">{editId ? t("edit") : (lang === "bn" ? "নতুন বায়ার যোগ করুন" : "Add New Buyer")}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div><label className="text-xs text-muted-foreground mb-1 block">{t("buyerName")} *</label><input value={name} onChange={e => setName(e.target.value)} className={inputClass} /></div>
+            <div><label className="text-xs text-muted-foreground mb-1 block">{t("buyerName")} *</label><input value={name} onChange={e => setName(e.target.value)} title={t("buyerName")} aria-label={t("buyerName")} className={inputClass} /></div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "দেশ" : "Country"}</label>
-              <select value={country} onChange={e => setCountry(e.target.value)} className={inputClass}>
+              <select value={country} onChange={e => setCountry(e.target.value)} aria-label={lang === "bn" ? "দেশ" : "Country"} title={lang === "bn" ? "দেশ" : "Country"} className={inputClass}>
                 {countryOptions.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
               </select>
             </div>
-            <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "ঠিকানা" : "Address"}</label><input value={address} onChange={e => setAddress(e.target.value)} className={inputClass} /></div>
+            <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "ঠিকানা" : "Address"}</label><input value={address} onChange={e => setAddress(e.target.value)} title={lang === "bn" ? "ঠিকানা" : "Address"} aria-label={lang === "bn" ? "ঠিকানা" : "Address"} className={inputClass} /></div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "ফোন নাম্বার" : "Phone"}</label><input value={phone} onChange={e => setPhone(e.target.value)} placeholder="+880..." className={inputClass} /></div>
             <div><label className="text-xs text-muted-foreground mb-1 block">WhatsApp</label><input value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="+880..." className={inputClass} /></div>
-            <div><label className="text-xs text-muted-foreground mb-1 block">WeChat ID</label><input value={wechat} onChange={e => setWechat(e.target.value)} className={inputClass} /></div>
+            <div><label className="text-xs text-muted-foreground mb-1 block">WeChat ID</label><input value={wechat} onChange={e => setWechat(e.target.value)} title="WeChat ID" aria-label="WeChat ID" className={inputClass} /></div>
             <div><label className="text-xs text-muted-foreground mb-1 block">IMO</label><input value={imo} onChange={e => setImo(e.target.value)} placeholder="+880..." className={inputClass} /></div>
-            <div className="md:col-span-2"><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "নোট" : "Notes"}</label><input value={notes} onChange={e => setNotes(e.target.value)} className={inputClass} /></div>
+            <div className="md:col-span-2"><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "নোট" : "Notes"}</label><input value={notes} onChange={e => setNotes(e.target.value)} title={lang === "bn" ? "নোট" : "Notes"} aria-label={lang === "bn" ? "নোট" : "Notes"} className={inputClass} /></div>
           </div>
           <div className="flex gap-3 mt-4">
             <button onClick={handleSave} className="px-4 py-2 rounded-lg bg-gradient-gold text-primary-foreground text-sm font-medium">{t("save")}</button>
@@ -230,10 +232,10 @@ const BuyerProfileModule = () => {
                     </button>
                   )}
                   {can_edit && (
-                    <button onClick={() => handleEdit(b)} className="p-1.5 rounded hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                    <button onClick={() => handleEdit(b)} title={lang === "bn" ? "সম্পাদনা" : "Edit"} aria-label="Edit buyer" className="p-1.5 rounded hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
                   )}
                   {can_delete && (
-                    <button onClick={() => handleDelete(b.id)} className="p-1.5 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive/70" /></button>
+                    <button onClick={() => handleDelete(b.id)} title={lang === "bn" ? "মুছুন" : "Delete"} aria-label="Delete buyer" className="p-1.5 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive/70" /></button>
                   )}
                 </div>
               </div>

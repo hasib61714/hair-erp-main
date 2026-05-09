@@ -139,6 +139,8 @@ const NotificationBell = ({ onNavigate }: NotificationBellProps) => {
                 )}
                 <button
                   onClick={() => setOpen(false)}
+                  title="Close"
+                  aria-label="Close notifications"
                   className="p-1.5 rounded-md hover:bg-secondary text-muted-foreground transition-colors"
                 >
                   <X className="w-4 h-4" />
@@ -175,6 +177,8 @@ const NotificationBell = ({ onNavigate }: NotificationBellProps) => {
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteNotification(n.id); }}
+                      title="Delete notification"
+                      aria-label="Delete notification"
                       className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0"
                     >
                       <Trash2 className="w-3 h-3" />

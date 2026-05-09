@@ -121,6 +121,8 @@ const DailyReportModule = () => {
           <div className="flex items-center gap-1.5">
             <Calendar className="w-4 h-4 text-muted-foreground" />
             <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)}
+              aria-label={lang === "bn" ? "তারিখ নির্বাচন করুন" : "Select date"}
+              title={lang === "bn" ? "তারিখ নির্বাচন করুন" : "Select date"}
               className="h-8 rounded-lg border border-border bg-background px-2 text-xs" />
           </div>
           <button onClick={handlePrint} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90">

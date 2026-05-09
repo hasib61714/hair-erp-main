@@ -9,6 +9,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import PrintToolbar from "@/components/PrintToolbar";
 import PartySettlementPrint from "@/components/PartySettlementPrint";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
+import { useConfirm } from "@/contexts/ConfirmContext";
 
 type Consignment = {
   id: string; party_name: string; sent_date: string; sent_kg: number;
@@ -36,6 +37,7 @@ const GRADES = ["6\"", "8\"", "10\"", "12\"", "14\"", "16\"", "18\"", "20\"", "2
 const PartyModule = () => {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
+  const confirm = useConfirm();
   const { can_edit, can_delete } = usePermissions("party");
   const { settings } = useCompanySettings();
 
@@ -142,7 +144,7 @@ const PartyModule = () => {
   };
 
   const handleDeleteConsignment = async (id: string) => {
-    if (!confirm("নিশ্চিত করুন — এই কনসাইনমেন্ট মুছে ফেলা হবে?")) return;
+    if (!(await confirm("নিশ্চিত করুন — এই কনসাইনমেন্ট মুছে ফেলা হবে?"))) return;
     const { error } = await supabase.from("party_consignments").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("ডিলিট হয়েছে"); fetchConsignments();
@@ -181,7 +183,7 @@ const PartyModule = () => {
   };
 
   const handleDeleteReturn = async (returnId: string, consignmentId: string) => {
-    if (!confirm("এই ফেরত ব্যাচ মুছে ফেলবেন?")) return;
+    if (!(await confirm("এই ফেরত ব্যাচ মুছে ফেলবেন?"))) return;
     const { error } = await supabase.from("party_returns").delete().eq("id", returnId);
     if (error) { toast.error(error.message); return; }
 
@@ -242,7 +244,7 @@ const PartyModule = () => {
   };
 
   const handleDeleteSettlement = async (id: string) => {
-    if (!confirm("নিশ্চিত করুন — এই সেটেলমেন্ট মুছে ফেলা হবে?")) return;
+    if (!(await confirm("নিশ্চিত করুন — এই সেটেলমেন্ট মুছে ফেলা হবে?"))) return;
     const { error } = await supabase.from("party_settlements").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success("ডিলিট হয়েছে"); fetchSettlements();
@@ -420,12 +422,12 @@ const PartyModule = () => {
             <div className="rounded-xl border border-primary/20 p-6 bg-gradient-card shadow-card animate-slide-in">
               <h3 className="text-sm font-semibold text-foreground mb-4">{editCId ? t("edit") : (lang === "bn" ? "নতুন কনসাইনমেন্ট" : "New Consignment")}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div><label className="text-xs text-muted-foreground mb-1 block">{t("partyName")}</label><input value={cPartyName} onChange={e => setCPartyName(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "পাঠানো ওজন (KG)" : "Sent Weight (KG)"}</label><input type="number" value={cSentKg} onChange={e => setCSentKg(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{t("date")}</label><input type="date" value={cSentDate} onChange={e => setCSentDate(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "কোথা থেকে পাঠানো" : "Sent From"}</label><input value={cFactoryFrom} onChange={e => setCFactoryFrom(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "কোন কারখানায় কাজ" : "Processed At"}</label><input value={cFactoryAt} onChange={e => setCFactoryAt(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "নোট" : "Notes"}</label><input value={cNotes} onChange={e => setCNotes(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{t("partyName")}</label><input value={cPartyName} onChange={e => setCPartyName(e.target.value)} title={t("partyName")} aria-label={t("partyName")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "পাঠানো ওজন (KG)" : "Sent Weight (KG)"}</label><input type="number" value={cSentKg} onChange={e => setCSentKg(e.target.value)} title={lang === "bn" ? "পাঠানো ওজন (KG)" : "Sent Weight (KG)"} aria-label={lang === "bn" ? "পাঠানো ওজন (KG)" : "Sent Weight (KG)"} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{t("date")}</label><input type="date" value={cSentDate} onChange={e => setCSentDate(e.target.value)} title={t("date")} aria-label={t("date")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "কোথা থেকে পাঠানো" : "Sent From"}</label><input value={cFactoryFrom} onChange={e => setCFactoryFrom(e.target.value)} title={lang === "bn" ? "কোথা থেকে পাঠানো" : "Sent From"} aria-label={lang === "bn" ? "কোথা থেকে পাঠানো" : "Sent From"} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "কোন কারখানায় কাজ" : "Processed At"}</label><input value={cFactoryAt} onChange={e => setCFactoryAt(e.target.value)} title={lang === "bn" ? "কোন কারখানায় কাজ" : "Processed At"} aria-label={lang === "bn" ? "কোন কারখানায় কাজ" : "Processed At"} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "নোট" : "Notes"}</label><input value={cNotes} onChange={e => setCNotes(e.target.value)} title={lang === "bn" ? "নোট" : "Notes"} aria-label={lang === "bn" ? "নোট" : "Notes"} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
               </div>
               <div className="flex gap-3 mt-4">
                 <button type="button" onClick={handleSaveConsignment} className="px-4 py-2 rounded-lg bg-gradient-gold text-primary-foreground text-sm font-medium">{t("save")}</button>
@@ -492,9 +494,9 @@ const PartyModule = () => {
                           {showReturnForm === c.id && (
                             <div className="mt-3 p-3 rounded-lg border border-primary/20 bg-background space-y-3">
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div><label className="text-[11px] text-muted-foreground mb-1 block">{lang === "bn" ? "ফেরত ওজন (KG)" : "Return KG"}</label><input type="number" value={rReturnKg} onChange={e => setRReturnKg(e.target.value)} className="w-full h-8 rounded-lg border border-border bg-secondary/50 px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                                <div><label className="text-[11px] text-muted-foreground mb-1 block">{t("date")}</label><input type="date" value={rReturnDate} onChange={e => setRReturnDate(e.target.value)} className="w-full h-8 rounded-lg border border-border bg-secondary/50 px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                                <div><label className="text-[11px] text-muted-foreground mb-1 block">{lang === "bn" ? "নোট" : "Notes"}</label><input value={rNotes} onChange={e => setRNotes(e.target.value)} className="w-full h-8 rounded-lg border border-border bg-secondary/50 px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                                <div><label className="text-[11px] text-muted-foreground mb-1 block">{lang === "bn" ? "ফেরত ওজন (KG)" : "Return KG"}</label><input type="number" value={rReturnKg} onChange={e => setRReturnKg(e.target.value)} title={lang === "bn" ? "ফেরত ওজন (KG)" : "Return KG"} aria-label={lang === "bn" ? "ফেরত ওজন (KG)" : "Return KG"} className="w-full h-8 rounded-lg border border-border bg-secondary/50 px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                                <div><label className="text-[11px] text-muted-foreground mb-1 block">{t("date")}</label><input type="date" value={rReturnDate} onChange={e => setRReturnDate(e.target.value)} title={t("date")} aria-label={t("date")} className="w-full h-8 rounded-lg border border-border bg-secondary/50 px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                                <div><label className="text-[11px] text-muted-foreground mb-1 block">{lang === "bn" ? "নোট" : "Notes"}</label><input value={rNotes} onChange={e => setRNotes(e.target.value)} title={lang === "bn" ? "নোট" : "Notes"} aria-label={lang === "bn" ? "নোট" : "Notes"} className="w-full h-8 rounded-lg border border-border bg-secondary/50 px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
                               </div>
                               <div className="flex gap-2">
                                 <button type="button" onClick={() => handleAddReturn(c.id)} className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium">{t("save")}</button>
@@ -552,17 +554,17 @@ const PartyModule = () => {
               <h3 className="text-sm font-semibold text-foreground mb-4">{editSId ? t("edit") : t("addSettlement")}</h3>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <div><label className="text-xs text-muted-foreground mb-1 block">{t("partyName")}</label><input value={sPartyName} onChange={e => setSPartyName(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{t("buyerRate")} ({lang === "bn" ? "গোপন" : "Hidden"})</label><input type="number" value={sBuyerRate} onChange={e => setSBuyerRate(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{t("commission")}</label><input type="number" value={sCommission} onChange={e => setSCommission(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{t("processingCost")}</label><input type="number" value={sProcessingCost} onChange={e => setSProcessingCost(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{t("paid")}</label><input type="number" value={sPaid} onChange={e => setSPaid(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{t("remand")} (KG)</label><input type="number" value={sRemandKg} onChange={e => setSRemandKg(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
-                <div><label className="text-xs text-muted-foreground mb-1 block">{t("chhat")} (KG)</label><input type="number" value={sChhatKg} onChange={e => setSChhatKg(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{t("partyName")}</label><input value={sPartyName} onChange={e => setSPartyName(e.target.value)} title={t("partyName")} aria-label={t("partyName")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{t("buyerRate")} ({lang === "bn" ? "গোপন" : "Hidden"})</label><input type="number" value={sBuyerRate} onChange={e => setSBuyerRate(e.target.value)} title={t("buyerRate")} aria-label={t("buyerRate")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{t("commission")}</label><input type="number" value={sCommission} onChange={e => setSCommission(e.target.value)} title={t("commission")} aria-label={t("commission")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{t("processingCost")}</label><input type="number" value={sProcessingCost} onChange={e => setSProcessingCost(e.target.value)} title={t("processingCost")} aria-label={t("processingCost")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{t("paid")}</label><input type="number" value={sPaid} onChange={e => setSPaid(e.target.value)} title={t("paid")} aria-label={t("paid")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{t("remand")} (KG)</label><input type="number" value={sRemandKg} onChange={e => setSRemandKg(e.target.value)} title={t("remand")} aria-label={t("remand")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
+                <div><label className="text-xs text-muted-foreground mb-1 block">{t("chhat")} (KG)</label><input type="number" value={sChhatKg} onChange={e => setSChhatKg(e.target.value)} title={t("chhat")} aria-label={t("chhat")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" /></div>
                 {consignments.length > 0 && (
                   <div>
                     <label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "কনসাইনমেন্ট লিংক" : "Link Consignment"}</label>
-                    <select value={sConsignmentId} onChange={e => setSConsignmentId(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+                    <select value={sConsignmentId} onChange={e => setSConsignmentId(e.target.value)} aria-label={lang === "bn" ? "কনসাইনমেন্ট লিংক" : "Link Consignment"} title={lang === "bn" ? "কনসাইনমেন্ট লিংক" : "Link Consignment"} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                       <option value="">{lang === "bn" ? "নির্বাচন করুন" : "Select"}</option>
                       {consignments.map(c => <option key={c.id} value={c.id}>{c.party_name} — {c.sent_kg}KG ({c.sent_date})</option>)}
                     </select>
@@ -579,7 +581,7 @@ const PartyModule = () => {
                 <div className="space-y-2">
                   {sGradeDetails.map((g, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <select value={g.grade} onChange={e => updateGradeRow(i, "grade", e.target.value)} className="h-8 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+                      <select value={g.grade} onChange={e => updateGradeRow(i, "grade", e.target.value)} aria-label={lang === "bn" ? "গ্রেড" : "Grade"} title={lang === "bn" ? "গ্রেড" : "Grade"} className="h-8 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
                         {GRADES.map(gr => <option key={gr} value={gr}>{gr}</option>)}
                       </select>
                       <input type="number" placeholder="KG" value={g.kg || ""} onChange={e => updateGradeRow(i, "kg", e.target.value)} className="w-24 h-8 rounded-lg border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
@@ -597,7 +599,7 @@ const PartyModule = () => {
               {/* Comments */}
               <div className="mb-4">
                 <label className="text-xs text-muted-foreground mb-1 block">{lang === "bn" ? "মন্তব্য" : "Comments"}</label>
-                <textarea value={sComments} onChange={e => setSComments(e.target.value)} rows={2} className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+                <textarea value={sComments} onChange={e => setSComments(e.target.value)} rows={2} title={lang === "bn" ? "মন্তব্য" : "Comments"} aria-label={lang === "bn" ? "মন্তব্য" : "Comments"} className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
               </div>
 
               <div className="flex gap-3">
