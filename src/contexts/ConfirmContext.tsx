@@ -14,6 +14,7 @@ type ConfirmFn = (message: string, title?: string) => Promise<boolean>;
 
 const ConfirmContext = createContext<ConfirmFn>(() => Promise.resolve(false));
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useConfirm = () => useContext(ConfirmContext);
 
 export const ConfirmProvider = ({ children }: { children: React.ReactNode }) => {

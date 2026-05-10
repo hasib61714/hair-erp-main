@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -235,10 +235,13 @@ const InventoryModule = () => {
     staleTime: 30_000,
   });
 
-  const inventory = data?.inventory ?? [];
-  const factories  = data?.factories ?? [];
+  const inventory = useMemo(() => data?.inventory ?? [], [data]);
+  const factories  = useMemo(() => data?.factories ?? [], [data]);
 
-  const getFactoryName = (id: string | null) => factories.find(f => f.id === id)?.name ?? "—";
+  const getFactoryName = useCallback(
+    (id: string | null) => factories.find(f => f.id === id)?.name ?? "—",
+    [factories]
+  );
   const getProductLabel = (type: string) => {
     const found = PRODUCT_TYPES.find(p => p.value === type);
     return found ? t(found.labelKey) : type;
@@ -254,7 +257,7 @@ const InventoryModule = () => {
         getFactoryName(row.factory_id).toLowerCase().includes(q);
       return matchType && matchSearch;
     });
-  }, [inventory, filterType, searchQuery, factories]);
+  }, [inventory, filterType, searchQuery, getFactoryName]);
 
   const totalKg    = filteredData.reduce((s, g) => s + Number(g.stock_kg), 0);
   const totalValue = filteredData.reduce((s, g) => s + Number(g.stock_kg) * Number(g.rate_per_kg), 0);
@@ -275,7 +278,7 @@ const InventoryModule = () => {
       map.set(fId, prev);
     });
     return Array.from(map.entries());
-  }, [filteredData, factories]);
+  }, [filteredData, getFactoryName]);
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["inventory"] });
 

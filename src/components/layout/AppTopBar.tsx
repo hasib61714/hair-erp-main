@@ -138,7 +138,7 @@ const ProfileMenu = ({
           {avatarUrl ? (
             <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full bg-gradient-gold flex items-center justify-center text-[10px] font-bold text-primary-foreground">
+            <div className="w-full h-full bg-gradient-gold flex items-center justify-center text-[10px] font-bold text-white">
               {userInitials}
             </div>
           )}
@@ -158,7 +158,7 @@ const ProfileMenu = ({
                 {avatarUrl ? (
                   <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-gradient-gold flex items-center justify-center text-xs font-bold text-primary-foreground">
+                  <div className="w-full h-full bg-gradient-gold flex items-center justify-center text-xs font-bold text-white">
                     {userInitials}
                   </div>
                 )}

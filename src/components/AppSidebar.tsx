@@ -174,7 +174,7 @@ const AppSidebar = ({ activeModule, onModuleChange, onClose }: AppSidebarProps) 
             {settings.logo_url ? (
               <img src={settings.logo_url} alt="Logo" className="w-full h-full object-contain" />
             ) : (
-              <span className="text-[11px] font-extrabold text-primary-foreground tracking-tight">MH</span>
+              <span className="text-[11px] font-extrabold text-white tracking-tight">MH</span>
             )}
           </div>
           {!collapsed && (
