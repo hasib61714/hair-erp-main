@@ -473,7 +473,7 @@ const InventoryModule = () => {
               title={searchQuery || filterType !== "all" ? "No matching items" : t("noData")}
               description={searchQuery || filterType !== "all"
                 ? "Try adjusting your search or filter"
-                : "Click "Add Entry" above to add inventory"}
+                : "Click 'Add Entry' above to add inventory"}
               action={
                 (searchQuery || filterType !== "all") ? (
                   <button type="button" onClick={() => { setSearchQuery(""); setFilterType("all"); }} className="btn-ghost text-xs">
