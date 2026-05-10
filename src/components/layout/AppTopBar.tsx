@@ -69,6 +69,7 @@ const ProfileMenu = ({
   onAvatarDelete,
   onSignOut,
   lang,
+  uploading,
 }: {
   user: ReturnType<typeof useAuth>["user"];
   role: ReturnType<typeof useAuth>["role"];
@@ -78,6 +79,7 @@ const ProfileMenu = ({
   onAvatarDelete: () => void;
   onSignOut: () => void;
   lang: string;
+  uploading: boolean;
 }) => {
   const { t } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -179,10 +181,17 @@ const ProfileMenu = ({
             <button
               type="button"
               onClick={() => avatarRef.current?.click()}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors"
+              disabled={uploading}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-foreground hover:bg-accent transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Camera className="w-4 h-4 text-muted-foreground" />
-              {lang === "bn" ? "প্রোফাইল ছবি আপলোড" : "Upload Photo"}
+              {uploading
+                ? <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
+                : <Camera className="w-4 h-4 text-muted-foreground" />
+              }
+              {uploading
+                ? (lang === "bn" ? "আপলোড হচ্ছে..." : "Uploading...")
+                : (lang === "bn" ? "প্রোফাইল ছবি আপলোড" : "Upload Photo")
+              }
             </button>
             {avatarUrl && (
               <button
@@ -261,6 +270,7 @@ const AppTopBar = ({ activeModule, onModuleChange, onOpenMobileMenu }: Props) =>
   const { user, role, signOut } = useAuth();
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -332,17 +342,29 @@ const AppTopBar = ({ activeModule, onModuleChange, onOpenMobileMenu }: Props) =>
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !user) return;
-    const ext = file.name.split(".").pop();
-    const path = `${user.id}/avatar.${ext}`;
-    const { data: existing } = await supabase.storage.from("avatars").list(user.id, { limit: 5 });
-    const oldFiles = existing?.filter(f => f.name.startsWith("avatar")) ?? [];
-    if (oldFiles.length > 0) {
-      await supabase.storage.from("avatars").remove(oldFiles.map(f => `${user.id}/${f.name}`));
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "jpg";
+      const path = `${user.id}/avatar.${ext}`;
+      const { data: existing } = await supabase.storage.from("avatars").list(user.id, { limit: 10 });
+      const oldFiles = existing?.filter(f => f.name.startsWith("avatar")) ?? [];
+      if (oldFiles.length > 0) {
+        await supabase.storage.from("avatars").remove(oldFiles.map(f => `${user.id}/${f.name}`));
+      }
+      const { error } = await supabase.storage.from("avatars").upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+        cacheControl: "3600",
+      });
+      if (error) throw error;
+      toast.success(lang === "bn" ? "প্রোফাইল ছবি আপলোড হয়েছে" : "Profile picture uploaded");
+      await fetchAvatar();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
     }
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (error) { toast.error(error.message); return; }
-    toast.success(lang === "bn" ? "প্রোফাইল ছবি আপলোড হয়েছে" : "Profile picture uploaded");
-    fetchAvatar();
   };
 
   const handleAvatarDelete = async () => {
@@ -484,6 +506,7 @@ const AppTopBar = ({ activeModule, onModuleChange, onOpenMobileMenu }: Props) =>
         onAvatarDelete={handleAvatarDelete}
         onSignOut={signOut}
         lang={lang}
+        uploading={uploading}
       />
     </header>
   );
