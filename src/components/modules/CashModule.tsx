@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import PrintToolbar from "@/components/PrintToolbar";
-import { useQuery } from "@tanstack/react-query";
 import EmptyState from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/ui/loading-skeleton";
 
