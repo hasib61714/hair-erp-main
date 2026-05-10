@@ -9,7 +9,7 @@ import { useConfirm } from "@/contexts/ConfirmContext";
 import { usePermissions } from "@/hooks/usePermissions";
 import PrintToolbar from "@/components/PrintToolbar";
 import { useQuery } from "@tanstack/react-query";
-import { EmptyState } from "@/components/ui/empty-state";
+import EmptyState from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/ui/loading-skeleton";
 
 type CashEntry = {

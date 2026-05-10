@@ -10,7 +10,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import TransactionDrawer from "@/components/TransactionDrawer";
 import PrintToolbar from "@/components/PrintToolbar";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import { EmptyState } from "@/components/ui/empty-state";
+import EmptyState from "@/components/ui/empty-state";
 import { TableSkeleton } from "@/components/ui/loading-skeleton";
 
 type GradeDetail = { grade: string; kg: number; rate: number };
