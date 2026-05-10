@@ -1,316 +1,410 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Pencil, Plus, Trash2, X, Factory, Check } from "lucide-react";
+import {
+  Pencil, Plus, Trash2, X, Factory, Check,
+  Scissors, Search, Filter,
+} from "lucide-react";
 import PrintToolbar from "@/components/PrintToolbar";
+import PageHeader from "@/components/ui/page-header";
+import EmptyState from "@/components/ui/empty-state";
+import { TableSkeleton } from "@/components/ui/loading-skeleton";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type InventoryRow = {
-  id: string; grade: string; stock_kg: number; rate_per_kg: number; factory_id: string | null; product_type: string;
+  id: string; grade: string; stock_kg: number; rate_per_kg: number;
+  factory_id: string | null; product_type: string;
 };
 type FactoryRow = { id: string; name: string; location: string; factory_type: string };
-type GradeRow = { grade: string; kg: string; rate: string };
+type GradeRow   = { grade: string; kg: string; rate: string };
 
 const PRODUCT_TYPES = [
-  { value: "guti", labelKey: "gutiProduct" as const },
-  { value: "kachi", labelKey: "kachiProduct" as const },
-  { value: "two_by_two", labelKey: "twobytwoProduct" as const },
+  { value: "guti",        labelKey: "gutiProduct"     as const },
+  { value: "kachi",       labelKey: "kachiProduct"    as const },
+  { value: "two_by_two",  labelKey: "twobytwoProduct" as const },
 ];
 
 const GRADES = ['6"','8"','10"','12"','14"','16"','18"','20"','22"','24"','26"','28"','30"','32"'];
 
+const PRODUCT_BADGE: Record<string, string> = {
+  guti:       "bg-amber-500/10 text-amber-600 border-amber-500/20",
+  kachi:      "bg-blue-500/10 text-blue-600 border-blue-500/20",
+  two_by_two: "bg-success/10 text-success border-success/20",
+};
+
+// ── Data fetching ──────────────────────────────────────────────────
+const fetchInventory = async () => {
+  const [{ data: inv }, { data: facs }] = await Promise.all([
+    supabase.from("inventory").select("*").order("grade"),
+    supabase.from("factories").select("id, name, location, factory_type"),
+  ]);
+  return { inventory: inv ?? [], factories: facs ?? [] };
+};
+
+// ── Add entry form ─────────────────────────────────────────────────
+const AddEntryForm = ({
+  factories,
+  onSaved,
+  onCancel,
+  t,
+}: {
+  factories: FactoryRow[];
+  onSaved: () => void;
+  onCancel: () => void;
+  t: (k: string) => string;
+}) => {
+  const [productType, setProductType] = useState("two_by_two");
+  const [newFactory,  setNewFactory]  = useState("");
+  const [newGrade,    setNewGrade]    = useState("");
+  const [newStock,    setNewStock]    = useState("");
+  const [newRate,     setNewRate]     = useState("");
+  const [gradeRows,   setGradeRows]   = useState<GradeRow[]>([{ grade: '6"', kg: "", rate: "" }]);
+  const [saving, setSaving] = useState(false);
+
+  const isMultiGrade = productType === "kachi" || productType === "two_by_two";
+
+  const handleAdd = async () => {
+    setSaving(true);
+    try {
+      if (isMultiGrade) {
+        const valid = gradeRows.filter(r => r.kg && parseFloat(r.kg) > 0);
+        if (valid.length === 0) { toast.error("Add at least one grade entry"); return; }
+        const { error } = await supabase.from("inventory").insert(
+          valid.map(r => ({
+            grade: r.grade, stock_kg: parseFloat(r.kg) || 0,
+            rate_per_kg: parseFloat(r.rate) || 0,
+            factory_id: newFactory || null, product_type: productType,
+          }))
+        );
+        if (error) { toast.error(error.message); return; }
+      } else {
+        if (!newGrade.trim()) { toast.error("Grade is required"); return; }
+        const { error } = await supabase.from("inventory").insert({
+          grade: newGrade.trim(), stock_kg: parseFloat(newStock) || 0,
+          rate_per_kg: parseFloat(newRate) || 0,
+          factory_id: newFactory || null, product_type: productType,
+        });
+        if (error) { toast.error(error.message); return; }
+      }
+      toast.success(t("saved"));
+      onSaved();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-primary/25 bg-primary/3 p-5 space-y-4 animate-slide-up">
+      <h3 className="text-sm font-semibold text-foreground">{t("addEntry")}</h3>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="text-label mb-1.5 block">{t("productType")}</label>
+          <select
+            value={productType}
+            onChange={e => { setProductType(e.target.value); setGradeRows([{ grade: '6"', kg: "", rate: "" }]); }}
+            aria-label={t("productType")}
+            className="input-base"
+          >
+            {PRODUCT_TYPES.map(p => (
+              <option key={p.value} value={p.value}>{t(p.labelKey)}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="text-label mb-1.5 block">{t("factory")}</label>
+          <select value={newFactory} onChange={e => setNewFactory(e.target.value)} aria-label={t("factory")} className="input-base">
+            <option value="">— {t("factory")}</option>
+            {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {/* Single grade (Guti) */}
+      {!isMultiGrade && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="text-label mb-1.5 block">{t("grade")}</label>
+            <input value={newGrade} onChange={e => setNewGrade(e.target.value)} placeholder='e.g. 6"' className="input-base" />
+          </div>
+          <div>
+            <label className="text-label mb-1.5 block">{t("stock")} (KG)</label>
+            <input type="number" value={newStock} onChange={e => setNewStock(e.target.value)} placeholder="0" min="0" className="input-base" />
+          </div>
+          <div>
+            <label className="text-label mb-1.5 block">{t("rate")} (৳/KG)</label>
+            <input type="number" value={newRate} onChange={e => setNewRate(e.target.value)} placeholder="0" min="0" className="input-base" />
+          </div>
+        </div>
+      )}
+
+      {/* Multi-grade rows (Kachi / 2×2) */}
+      {isMultiGrade && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-label">{t("gradeDetails")}</label>
+            <button
+              type="button"
+              onClick={() => setGradeRows(r => [...r, { grade: '8"', kg: "", rate: "" }])}
+              className="btn-ghost h-7 px-2 text-xs gap-1"
+            >
+              <Plus className="w-3 h-3" /> Add row
+            </button>
+          </div>
+
+          <div className="rounded-lg border border-border overflow-hidden">
+            <div className="grid grid-cols-[80px_1fr_1fr_80px_32px] gap-0 px-3 py-2 bg-secondary/50 border-b border-border">
+              <span className="text-label">Grade</span>
+              <span className="text-label">Stock (KG)</span>
+              <span className="text-label">Rate (৳)</span>
+              <span className="text-label text-right">Total</span>
+              <span />
+            </div>
+            {gradeRows.map((row, i) => (
+              <div key={i} className="grid grid-cols-[80px_1fr_1fr_80px_32px] gap-2 px-3 py-2 border-b border-border/50 last:border-0 items-center">
+                <select
+                  value={row.grade}
+                  onChange={e => setGradeRows(prev => prev.map((r, idx) => idx === i ? { ...r, grade: e.target.value } : r))}
+                  aria-label="Grade"
+                  className="input-base h-8 text-xs"
+                >
+                  {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <input
+                  type="number" placeholder="0" min="0" value={row.kg}
+                  onChange={e => setGradeRows(prev => prev.map((r, idx) => idx === i ? { ...r, kg: e.target.value } : r))}
+                  className="input-base h-8 text-xs"
+                />
+                <input
+                  type="number" placeholder="0" min="0" value={row.rate}
+                  onChange={e => setGradeRows(prev => prev.map((r, idx) => idx === i ? { ...r, rate: e.target.value } : r))}
+                  className="input-base h-8 text-xs"
+                />
+                <span className="text-[11px] text-muted-foreground text-right tabular-nums">
+                  {row.kg && row.rate ? `৳${(parseFloat(row.kg) * parseFloat(row.rate)).toLocaleString()}` : "—"}
+                </span>
+                {gradeRows.length > 1 ? (
+                  <button type="button" aria-label="Remove row" onClick={() => setGradeRows(prev => prev.filter((_, idx) => idx !== i))} className="btn-icon w-7 h-7">
+                    <X className="w-3.5 h-3.5 text-destructive/70" />
+                  </button>
+                ) : <span />}
+              </div>
+            ))}
+          </div>
+
+          <p className="text-xs font-semibold text-foreground text-right">
+            Total: {gradeRows.reduce((s, r) => s + (parseFloat(r.kg) || 0), 0)} KG
+            &nbsp;·&nbsp;
+            ৳{gradeRows.reduce((s, r) => s + (parseFloat(r.kg) || 0) * (parseFloat(r.rate) || 0), 0).toLocaleString()}
+          </p>
+        </div>
+      )}
+
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={handleAdd} disabled={saving} className="btn-primary">
+          {saving ? "Saving…" : t("save")}
+        </button>
+        <button type="button" onClick={onCancel} className="btn-secondary">
+          {t("cancel")}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Main module ────────────────────────────────────────────────────
 const InventoryModule = () => {
   const { t } = useLanguage();
-  const [data, setData] = useState<InventoryRow[]>([]);
-  const [factories, setFactories] = useState<FactoryRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [editStock, setEditStock] = useState("");
-  const [editRate, setEditRate] = useState("");
-  const [showAdd, setShowAdd] = useState(false);
-  const [newGrade, setNewGrade] = useState("");
-  const [newStock, setNewStock] = useState("");
-  const [newRate, setNewRate] = useState("");
-  const [newFactory, setNewFactory] = useState("");
-  const [newProductType, setNewProductType] = useState("two_by_two");
-  // Grade rows for kachi/two_by_two
-  const [gradeRows, setGradeRows] = useState<GradeRow[]>([{ grade: '6"', kg: "", rate: "" }]);
-  const isMultiGrade = newProductType === "kachi" || newProductType === "two_by_two";
+  const qc = useQueryClient();
 
-  // Factory name editing
-  const [editFactoryId, setEditFactoryId] = useState<string | null>(null);
+  const [showAdd,      setShowAdd]      = useState(false);
+  const [editId,       setEditId]       = useState<string | null>(null);
+  const [editStock,    setEditStock]    = useState("");
+  const [editRate,     setEditRate]     = useState("");
+  const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
+  const [searchQuery,  setSearchQuery]  = useState("");
+  const [filterType,   setFilterType]   = useState("all");
+  const [editFactoryId,   setEditFactoryId]   = useState<string | null>(null);
   const [editFactoryName, setEditFactoryName] = useState("");
 
-  const fetchData = async () => {
-    const [{ data: inv }, { data: f }] = await Promise.all([
-      supabase.from("inventory").select("*").order("grade"),
-      supabase.from("factories").select("id, name, location, factory_type"),
-    ]);
-    setData(inv || []); setFactories(f || []); setLoading(false);
-  };
-  useEffect(() => { fetchData(); }, []);
+  const { data, isLoading } = useQuery({
+    queryKey: ["inventory"],
+    queryFn: fetchInventory,
+    staleTime: 30_000,
+  });
 
-  const getFactoryName = (id: string | null) => factories.find(f => f.id === id)?.name || "—";
+  const inventory = data?.inventory ?? [];
+  const factories  = data?.factories ?? [];
+
+  const getFactoryName = (id: string | null) => factories.find(f => f.id === id)?.name ?? "—";
   const getProductLabel = (type: string) => {
     const found = PRODUCT_TYPES.find(p => p.value === type);
     return found ? t(found.labelKey) : type;
   };
 
+  // Filter + search
+  const filteredData = useMemo(() => {
+    return inventory.filter(row => {
+      const matchType = filterType === "all" || row.product_type === filterType;
+      const q = searchQuery.trim().toLowerCase();
+      const matchSearch = !q ||
+        row.grade.toLowerCase().includes(q) ||
+        getFactoryName(row.factory_id).toLowerCase().includes(q);
+      return matchType && matchSearch;
+    });
+  }, [inventory, filterType, searchQuery, factories]);
+
+  const totalKg    = filteredData.reduce((s, g) => s + Number(g.stock_kg), 0);
+  const totalValue = filteredData.reduce((s, g) => s + Number(g.stock_kg) * Number(g.rate_per_kg), 0);
+  const lowCount   = filteredData.filter(g => Number(g.stock_kg) < 5).length;
+
+  // Factory summary (from filtered data)
+  const factorySummary = useMemo(() => {
+    const map = new Map<string, { name: string; guti: number; kachi: number; two_by_two: number; total: number }>();
+    filteredData.forEach(row => {
+      const fId   = row.factory_id ?? "__none__";
+      const fName = row.factory_id ? getFactoryName(row.factory_id) : "—";
+      const prev  = map.get(fId) ?? { name: fName, guti: 0, kachi: 0, two_by_two: 0, total: 0 };
+      const kg    = Number(row.stock_kg);
+      if (row.product_type === "guti")       prev.guti       += kg;
+      else if (row.product_type === "kachi") prev.kachi      += kg;
+      else                                   prev.two_by_two += kg;
+      prev.total += kg;
+      map.set(fId, prev);
+    });
+    return Array.from(map.entries());
+  }, [filteredData, factories]);
+
+  const refresh = () => qc.invalidateQueries({ queryKey: ["inventory"] });
+
   const handleSave = async () => {
     if (!editId) return;
     const { error } = await supabase.from("inventory").update({
-      stock_kg: parseFloat(editStock) || 0, rate_per_kg: parseFloat(editRate) || 0,
+      stock_kg: parseFloat(editStock) || 0,
+      rate_per_kg: parseFloat(editRate) || 0,
     }).eq("id", editId);
     if (error) { toast.error(error.message); return; }
-    toast.success(t("saved")); setEditId(null); fetchData();
-  };
-
-  const handleAdd = async () => {
-    if (isMultiGrade) {
-      const validRows = gradeRows.filter(r => r.kg && parseFloat(r.kg) > 0);
-      if (validRows.length === 0) { toast.error("কমপক্ষে একটি গ্রেড এন্ট্রি দিন"); return; }
-      const inserts = validRows.map(r => ({
-        grade: r.grade,
-        stock_kg: parseFloat(r.kg) || 0,
-        rate_per_kg: parseFloat(r.rate) || 0,
-        factory_id: newFactory || null,
-        product_type: newProductType,
-      }));
-      const { error } = await supabase.from("inventory").insert(inserts);
-      if (error) { toast.error(error.message); return; }
-      toast.success(t("saved"));
-      setShowAdd(false); setGradeRows([{ grade: '6"', kg: "", rate: "" }]); setNewFactory(""); setNewProductType("two_by_two");
-      fetchData(); return;
-    }
-    if (!newGrade.trim()) { toast.error("Grade is required"); return; }
-    const { error } = await supabase.from("inventory").insert({
-      grade: newGrade.trim(),
-      stock_kg: parseFloat(newStock) || 0,
-      rate_per_kg: parseFloat(newRate) || 0,
-      factory_id: newFactory || null,
-      product_type: newProductType,
-    });
-    if (error) { toast.error(error.message); return; }
     toast.success(t("saved"));
-    setShowAdd(false); setNewGrade(""); setNewStock(""); setNewRate(""); setNewFactory(""); setNewProductType("two_by_two");
-    fetchData();
+    setEditId(null);
+    refresh();
   };
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from("inventory").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success(t("deleted") || "Deleted"); fetchData();
+    toast.success(t("deleted") || "Deleted");
+    refresh();
   };
 
   const handleFactoryNameSave = async () => {
     if (!editFactoryId || !editFactoryName.trim()) return;
     const { error } = await supabase.from("factories").update({ name: editFactoryName.trim() }).eq("id", editFactoryId);
     if (error) { toast.error(error.message); return; }
-    toast.success(t("saved")); setEditFactoryId(null); setEditFactoryName(""); fetchData();
+    toast.success(t("saved"));
+    setEditFactoryId(null);
+    setEditFactoryName("");
+    refresh();
   };
 
-  const totalKg = data.reduce((s, g) => s + Number(g.stock_kg), 0);
-  const totalValue = data.reduce((s, g) => s + Number(g.stock_kg) * Number(g.rate_per_kg), 0);
-
-  // Group by factory
-  const factorySummary = useMemo(() => {
-    const map = new Map<string, { name: string; guti: number; kachi: number; two_by_two: number; total: number }>();
-    data.forEach(row => {
-      const fId = row.factory_id || "__none__";
-      const fName = row.factory_id ? getFactoryName(row.factory_id) : "—";
-      const existing = map.get(fId) || { name: fName, guti: 0, kachi: 0, two_by_two: 0, total: 0 };
-      const kg = Number(row.stock_kg);
-      if (row.product_type === "guti") existing.guti += kg;
-      else if (row.product_type === "kachi") existing.kachi += kg;
-      else existing.two_by_two += kg;
-      existing.total += kg;
-      map.set(fId, existing);
-    });
-    return Array.from(map.entries());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, factories]);
-
-  const inputClass = "w-full h-8 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground";
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{t("inventoryModule")}</h2>
-          <p className="text-xs text-muted-foreground">{t("factoryWiseStock")}</p>
-        </div>
+    <div className="page-container">
+      {/* Header */}
+      <PageHeader title={t("inventoryModule")} description={t("factoryWiseStock")} icon={Scissors}>
         <button
-          onClick={() => setShowAdd(!showAdd)}
-          className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+          type="button"
+          onClick={() => setShowAdd(v => !v)}
+          className={showAdd ? "btn-secondary" : "btn-primary"}
         >
-          {showAdd ? <X className="w-3.5 h-3.5" /> : <Plus className="w-3.5 h-3.5" />}
+          {showAdd ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
           {showAdd ? t("cancel") : t("addEntry")}
         </button>
-      </div>
+      </PageHeader>
 
+      {/* Add form */}
       {showAdd && (
-        <div className="rounded-xl border border-primary/30 p-4 bg-gradient-card shadow-card space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">{t("addEntry")}</h3>
-
-          {/* Product type + Factory — always shown */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">{t("productType")}</label>
-              <select value={newProductType} onChange={e => { setNewProductType(e.target.value); setGradeRows([{ grade: '6"', kg: "", rate: "" }]); }} aria-label={t("productType")} title={t("productType")} className={inputClass}>
-                {PRODUCT_TYPES.map(p => <option key={p.value} value={p.value}>{t(p.labelKey)}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">{t("factory")}</label>
-              <select value={newFactory} onChange={e => setNewFactory(e.target.value)} aria-label={t("factory")} title={t("factory")} className={inputClass}>
-                <option value="">—</option>
-                {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
-            </div>
-          </div>
-
-          {/* GUTI mode: single grade row */}
-          {!isMultiGrade && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <div>
-                <label className="text-[11px] text-muted-foreground mb-1 block">{t("grade")}</label>
-                <input value={newGrade} onChange={e => setNewGrade(e.target.value)} placeholder='e.g. 6"' className={inputClass} />
-              </div>
-              <div>
-                <label className="text-[11px] text-muted-foreground mb-1 block">{t("stock")} (KG)</label>
-                <input type="number" value={newStock} onChange={e => setNewStock(e.target.value)} placeholder="0" className={inputClass} />
-              </div>
-              <div>
-                <label className="text-[11px] text-muted-foreground mb-1 block">{t("rate")} (৳/KG)</label>
-                <input type="number" value={newRate} onChange={e => setNewRate(e.target.value)} placeholder="0" className={inputClass} />
-              </div>
-            </div>
-          )}
-
-          {/* KACHI / TWO_BY_TWO mode: grade rows */}
-          {isMultiGrade && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-[11px] font-semibold text-foreground">{t("gradeDetails")}</label>
-                <button type="button" onClick={() => setGradeRows(r => [...r, { grade: '8"', kg: "", rate: "" }])} className="text-[11px] text-primary hover:underline">
-                  + গ্রেড যোগ
-                </button>
-              </div>
-              {/* Column headers */}
-              <div className="flex items-center gap-2 px-1">
-                <span className="text-[10px] text-muted-foreground w-20">গ্রেড</span>
-                <span className="text-[10px] text-muted-foreground w-28">স্টক (KG)</span>
-                <span className="text-[10px] text-muted-foreground w-28">রেট (৳/KG)</span>
-                <span className="text-[10px] text-muted-foreground w-20">মোট</span>
-              </div>
-              {gradeRows.map((row, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <select
-                    value={row.grade}
-                    onChange={e => setGradeRows(prev => prev.map((r, idx) => idx === i ? { ...r, grade: e.target.value } : r))}
-                    aria-label="গ্রেড" title="গ্রেড"
-                    className="h-8 w-20 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                  >
-                    {GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                  <input type="number" placeholder="KG" value={row.kg}
-                    onChange={e => setGradeRows(prev => prev.map((r, idx) => idx === i ? { ...r, kg: e.target.value } : r))}
-                    className="w-28 h-8 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                  <input type="number" placeholder="রেট ৳" value={row.rate}
-                    onChange={e => setGradeRows(prev => prev.map((r, idx) => idx === i ? { ...r, rate: e.target.value } : r))}
-                    className="w-28 h-8 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
-                  <span className="text-xs text-muted-foreground w-20">
-                    {row.kg && row.rate ? `৳${(parseFloat(row.kg) * parseFloat(row.rate)).toLocaleString()}` : "—"}
-                  </span>
-                  {gradeRows.length > 1 && (
-                    <button type="button" aria-label="Remove row" onClick={() => setGradeRows(prev => prev.filter((_, idx) => idx !== i))} className="text-destructive/60 hover:text-destructive">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              <p className="text-xs font-medium text-foreground">
-                মোট: {gradeRows.reduce((s, r) => s + (parseFloat(r.kg) || 0), 0)} KG
-                = ৳{gradeRows.reduce((s, r) => s + (parseFloat(r.kg) || 0) * (parseFloat(r.rate) || 0), 0).toLocaleString()}
-              </p>
-            </div>
-          )}
-
-          <button onClick={handleAdd} className="px-4 py-2 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">
-            {t("save")}
-          </button>
-        </div>
+        <AddEntryForm
+          factories={factories}
+          onSaved={() => { setShowAdd(false); refresh(); }}
+          onCancel={() => setShowAdd(false)}
+          t={t}
+        />
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-primary/20 p-4 bg-gradient-card shadow-card">
-          <p className="text-xs text-muted-foreground">{t("total")} {t("stock")}</p>
-          <p className="text-2xl font-bold text-primary">{totalKg} KG</p>
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="card-base p-4">
+          <p className="text-label mb-1">{t("total")} {t("stock")}</p>
+          <p className="text-display text-primary">{Math.round(totalKg)} KG</p>
         </div>
-        <div className="rounded-xl border border-border p-4 bg-gradient-card shadow-card">
-          <p className="text-xs text-muted-foreground">{t("totalValuation")}</p>
-          <p className="text-2xl font-bold text-foreground">৳{totalValue.toLocaleString()}</p>
+        <div className="card-base p-4">
+          <p className="text-label mb-1">{t("totalValuation")}</p>
+          <p className="text-display">৳{Math.round(totalValue).toLocaleString()}</p>
         </div>
-        <div className="rounded-xl border border-destructive/20 p-4 bg-gradient-card shadow-card">
-          <p className="text-xs text-muted-foreground">{t("lowStock")}</p>
-          <p className="text-2xl font-bold text-destructive">{data.filter(g => Number(g.stock_kg) < 5).length} {t("grade")}</p>
+        <div className="card-base p-4">
+          <p className="text-label mb-1">{t("lowStock")}</p>
+          <p className={cn("text-display", lowCount > 0 ? "text-destructive" : "text-muted-foreground")}>
+            {lowCount} {t("grade")}
+          </p>
         </div>
       </div>
 
-      {/* Factory-wise Summary */}
-      {!loading && factorySummary.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Factory breakdown cards */}
+      {!isLoading && factorySummary.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {factorySummary.map(([fId, summary]) => (
-            <div key={fId} className="rounded-xl border border-border p-5 bg-gradient-card shadow-card hover:border-primary/30 transition-colors">
+            <div key={fId} className="card-hover p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Factory className="w-4 h-4 text-primary" />
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Factory className="w-3.5 h-3.5 text-primary" />
+                  </div>
                   {editFactoryId === fId && fId !== "__none__" ? (
                     <div className="flex items-center gap-1">
                       <input
                         value={editFactoryName}
                         onChange={e => setEditFactoryName(e.target.value)}
-                        className="h-7 w-32 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground"
-                        title="Factory name"
+                        className="input-base h-7 w-28 text-xs"
                         aria-label="Factory name"
                         autoFocus
                       />
-                      <button onClick={handleFactoryNameSave} title="Save" aria-label="Save factory name" className="p-1 rounded hover:bg-success/10"><Check className="w-3.5 h-3.5 text-success" /></button>
-                      <button onClick={() => setEditFactoryId(null)} title="Cancel" aria-label="Cancel edit" className="p-1 rounded hover:bg-secondary"><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                      <button type="button" onClick={handleFactoryNameSave} aria-label="Save" className="btn-icon w-7 h-7">
+                        <Check className="w-3.5 h-3.5 text-success" />
+                      </button>
+                      <button type="button" onClick={() => setEditFactoryId(null)} aria-label="Cancel" className="btn-icon w-7 h-7">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   ) : (
-                    <h3 className="text-sm font-semibold text-foreground">{summary.name}</h3>
+                    <span className="text-sm font-semibold text-foreground">{summary.name}</span>
                   )}
                 </div>
                 {fId !== "__none__" && editFactoryId !== fId && (
                   <button
+                    type="button"
                     onClick={() => { setEditFactoryId(fId); setEditFactoryName(summary.name); }}
-                    className="p-1 rounded hover:bg-secondary"
-                    title="Edit factory name"
                     aria-label="Edit factory name"
+                    className="btn-icon w-7 h-7"
                   >
-                    <Pencil className="w-3 h-3 text-muted-foreground" />
+                    <Pencil className="w-3 h-3" />
                   </button>
                 )}
               </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">{t("gutiProduct")}</span>
-                  <span className="text-xs font-medium text-foreground">{summary.guti} KG</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">{t("kachiProduct")}</span>
-                  <span className="text-xs font-medium text-foreground">{summary.kachi} KG</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-muted-foreground">{t("twobytwoProduct")}</span>
-                  <span className="text-xs font-medium text-foreground">{summary.two_by_two} KG</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-border/50 pt-2 mt-1">
-                  <span className="text-[11px] font-semibold text-primary">{t("total")}</span>
-                  <span className="text-xs font-bold text-primary">{summary.total} KG</span>
+              <div className="space-y-1.5">
+                {[
+                  { label: t("gutiProduct"),    val: summary.guti },
+                  { label: t("kachiProduct"),   val: summary.kachi },
+                  { label: t("twobytwoProduct"),val: summary.two_by_two },
+                ].map(({ label, val }) => (
+                  <div key={label} className="flex items-center justify-between">
+                    <span className="text-caption">{label}</span>
+                    <span className="text-xs font-medium text-foreground tabular-nums">{val} KG</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between border-t border-border/50 pt-1.5 mt-1">
+                  <span className="text-xs font-semibold text-primary">{t("total")}</span>
+                  <span className="text-xs font-bold text-primary tabular-nums">{summary.total} KG</span>
                 </div>
               </div>
             </div>
@@ -318,73 +412,146 @@ const InventoryModule = () => {
         </div>
       )}
 
-      {/* Detail Table */}
-      <div className="rounded-xl border border-border p-6 bg-gradient-card shadow-card">
-        <PrintToolbar
-          moduleName={t("inventoryModule")}
-          data={data}
-          selectedIds={selectedIds}
-          onSelectionChange={setSelectedIds}
-          dateField="updated_at"
-          renderPrintTable={(items) => {
-            const tk = items.reduce((s: number, g: any) => s + Number(g.stock_kg), 0);
-            const tv = items.reduce((s: number, g: any) => s + Number(g.stock_kg) * Number(g.rate_per_kg), 0);
-            return `<table><thead><tr><th>গ্রেড</th><th>পণ্যের ধরন</th><th>কারখানা</th><th style="text-align:right">স্টক (KG)</th><th style="text-align:right">দর (৳)</th><th style="text-align:right">মূল্য (৳)</th></tr></thead><tbody>${items.map((g: any) => `<tr><td>${g.grade}</td><td>${getProductLabel(g.product_type)}</td><td>${getFactoryName(g.factory_id)}</td><td style="text-align:right">${g.stock_kg}</td><td style="text-align:right">৳${Number(g.rate_per_kg).toLocaleString()}</td><td style="text-align:right">৳${(Number(g.stock_kg) * Number(g.rate_per_kg)).toLocaleString()}</td></tr>`).join("")}</tbody><tfoot><tr class="total-row"><td colspan="3">মোট</td><td style="text-align:right">${tk} KG</td><td></td><td style="text-align:right">৳${tv.toLocaleString()}</td></tr></tfoot></table>`;
-          }}
-        />
-        {loading ? <p className="text-xs text-muted-foreground">{t("loading")}</p> : data.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-muted-foreground mb-2">{t("noData")}</p>
-            <p className="text-xs text-muted-foreground">উপরের "নতুন এন্ট্রি" বাটনে ক্লিক করে ইনভেন্টরি যোগ করুন</p>
+      {/* Detail table */}
+      <div className="card-base overflow-hidden">
+        {/* Toolbar: search + filter + print */}
+        <div className="p-4 border-b border-border flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[180px] max-w-xs">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search grade / factory…"
+              className="input-base pl-8 h-8 text-xs"
+            />
           </div>
-        ) : (
-          <div className="overflow-x-auto">
+
+          <div className="flex items-center gap-1.5">
+            <Filter className="w-3.5 h-3.5 text-muted-foreground" />
+            {["all", "guti", "kachi", "two_by_two"].map(type => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setFilterType(type)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-xs font-medium transition-colors",
+                  filterType === type
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-accent"
+                )}
+              >
+                {type === "all" ? "All" : type === "two_by_two" ? "2×2" : type.charAt(0).toUpperCase() + type.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          <div className="ml-auto">
+            <PrintToolbar
+              moduleName={t("inventoryModule")}
+              data={filteredData}
+              selectedIds={selectedIds}
+              onSelectionChange={setSelectedIds}
+              dateField="updated_at"
+              renderPrintTable={(items: InventoryRow[]) => {
+                const tk = items.reduce((s, g) => s + Number(g.stock_kg), 0);
+                const tv = items.reduce((s, g) => s + Number(g.stock_kg) * Number(g.rate_per_kg), 0);
+                return `<table><thead><tr><th>Grade</th><th>Type</th><th>Factory</th><th>Stock (KG)</th><th>Rate (৳)</th><th>Value (৳)</th></tr></thead><tbody>${items.map(g => `<tr><td>${g.grade}</td><td>${getProductLabel(g.product_type)}</td><td>${getFactoryName(g.factory_id)}</td><td>${g.stock_kg}</td><td>৳${Number(g.rate_per_kg).toLocaleString()}</td><td>৳${(Number(g.stock_kg) * Number(g.rate_per_kg)).toLocaleString()}</td></tr>`).join("")}</tbody><tfoot><tr><td colspan="3"><strong>Total</strong></td><td><strong>${tk} KG</strong></td><td></td><td><strong>৳${tv.toLocaleString()}</strong></td></tr></tfoot></table>`;
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          {isLoading ? (
+            <div className="p-4">
+              <TableSkeleton rows={6} cols={7} />
+            </div>
+          ) : filteredData.length === 0 ? (
+            <EmptyState
+              icon={Scissors}
+              title={searchQuery || filterType !== "all" ? "No matching items" : t("noData")}
+              description={searchQuery || filterType !== "all"
+                ? "Try adjusting your search or filter"
+                : "Click "Add Entry" above to add inventory"}
+              action={
+                (searchQuery || filterType !== "all") ? (
+                  <button type="button" onClick={() => { setSearchQuery(""); setFilterType("all"); }} className="btn-ghost text-xs">
+                    Clear filters
+                  </button>
+                ) : undefined
+              }
+            />
+          ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left text-xs text-muted-foreground font-medium py-2 pr-3">{t("grade")}</th>
-                  <th className="text-left text-xs text-muted-foreground font-medium py-2 pr-3">{t("productType")}</th>
-                  <th className="text-left text-xs text-muted-foreground font-medium py-2 pr-3">{t("factory")}</th>
-                  <th className="text-right text-xs text-muted-foreground font-medium py-2 pr-3">{t("stock")} (KG)</th>
-                  <th className="text-right text-xs text-muted-foreground font-medium py-2 pr-3">{t("rate")} (৳)</th>
-                  <th className="text-right text-xs text-muted-foreground font-medium py-2 pr-3">{t("value")} (৳)</th>
-                  <th className="text-right text-xs text-muted-foreground font-medium py-2">{t("action")}</th>
+                <tr className="border-b border-border bg-secondary/30">
+                  <th className="table-header-cell">{t("grade")}</th>
+                  <th className="table-header-cell">{t("productType")}</th>
+                  <th className="table-header-cell">{t("factory")}</th>
+                  <th className="table-header-cell text-right">{t("stock")} (KG)</th>
+                  <th className="table-header-cell text-right">{t("rate")} (৳)</th>
+                  <th className="table-header-cell text-right">{t("value")} (৳)</th>
+                  <th className="table-header-cell text-right">{t("action")}</th>
                 </tr>
               </thead>
               <tbody>
-                {data.map(g => {
-                  const val = Number(g.stock_kg) * Number(g.rate_per_kg);
-                  const isEditing = editId === g.id;
+                {filteredData.map(g => {
+                  const val      = Number(g.stock_kg) * Number(g.rate_per_kg);
+                  const isEdit   = editId === g.id;
+                  const isLow    = Number(g.stock_kg) < 5;
                   return (
-                    <tr key={g.id} className="border-b border-border/50 hover:bg-secondary/30 transition-colors">
-                      <td className="py-3 pr-3 text-xs font-mono font-medium text-foreground">{g.grade}</td>
-                      <td className="py-3 pr-3 text-xs text-foreground">
-                        <span className={`px-1.5 py-0.5 rounded text-[11px] ${
-                          g.product_type === "guti" ? "bg-amber-500/10 text-amber-600" :
-                          g.product_type === "kachi" ? "bg-blue-500/10 text-blue-600" :
-                          "bg-success/10 text-success"
-                        }`}>
+                    <tr key={g.id} className="table-row-hover">
+                      <td className="table-cell font-mono font-semibold text-xs">{g.grade}</td>
+                      <td className="table-cell">
+                        <span className={cn("inline-flex items-center px-2 py-0.5 rounded-md border text-[11px] font-medium", PRODUCT_BADGE[g.product_type] ?? "badge-neutral")}>
                           {getProductLabel(g.product_type)}
                         </span>
                       </td>
-                      <td className="py-3 pr-3 text-xs text-foreground">{getFactoryName(g.factory_id)}</td>
-                      <td className="py-3 pr-3 text-xs text-right">
-                        {isEditing ? <input type="number" value={editStock} onChange={e => setEditStock(e.target.value)} aria-label="Stock KG" title="Stock KG" className="w-20 h-7 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground text-right" /> : <span className={Number(g.stock_kg) < 5 ? "text-destructive" : "text-foreground"}>{g.stock_kg}</span>}
+                      <td className="table-cell text-xs text-muted-foreground">{getFactoryName(g.factory_id)}</td>
+                      <td className="table-cell text-right">
+                        {isEdit ? (
+                          <input type="number" value={editStock} onChange={e => setEditStock(e.target.value)} aria-label="Stock KG" className="input-base h-7 w-20 text-xs text-right ml-auto" />
+                        ) : (
+                          <span className={cn("tabular-nums text-xs font-medium", isLow && "text-destructive font-semibold")}>
+                            {isLow && "⚠ "}{g.stock_kg}
+                          </span>
+                        )}
                       </td>
-                      <td className="py-3 pr-3 text-xs text-right">
-                        {isEditing ? <input type="number" value={editRate} onChange={e => setEditRate(e.target.value)} aria-label="Rate per KG" title="Rate per KG" className="w-20 h-7 rounded border border-border bg-secondary/50 px-2 text-xs text-foreground text-right" /> : <span className="text-muted-foreground">৳{Number(g.rate_per_kg).toLocaleString()}</span>}
+                      <td className="table-cell text-right">
+                        {isEdit ? (
+                          <input type="number" value={editRate} onChange={e => setEditRate(e.target.value)} aria-label="Rate per KG" className="input-base h-7 w-20 text-xs text-right ml-auto" />
+                        ) : (
+                          <span className="tabular-nums text-xs text-muted-foreground">৳{Number(g.rate_per_kg).toLocaleString()}</span>
+                        )}
                       </td>
-                      <td className="py-3 pr-3 text-xs text-right font-medium text-foreground">৳{val.toLocaleString()}</td>
-                      <td className="py-3 text-right">
-                        {isEditing ? (
+                      <td className="table-cell text-right font-semibold text-xs tabular-nums">
+                        ৳{val.toLocaleString()}
+                      </td>
+                      <td className="table-cell text-right">
+                        {isEdit ? (
                           <div className="flex justify-end gap-1">
-                            <button onClick={handleSave} className="px-2 py-1 text-[11px] rounded bg-primary text-primary-foreground">{t("save")}</button>
-                            <button onClick={() => setEditId(null)} className="px-2 py-1 text-[11px] rounded border border-border text-muted-foreground">{t("cancel")}</button>
+                            <button type="button" onClick={handleSave} className="btn-primary h-7 px-2.5 text-xs">{t("save")}</button>
+                            <button type="button" onClick={() => setEditId(null)} className="btn-secondary h-7 px-2.5 text-xs">{t("cancel")}</button>
                           </div>
                         ) : (
-                          <div className="flex justify-end gap-1">
-                            <button onClick={() => { setEditId(g.id); setEditStock(String(g.stock_kg)); setEditRate(String(g.rate_per_kg)); }} title="Edit" aria-label="Edit row" className="p-1 rounded hover:bg-secondary"><Pencil className="w-3.5 h-3.5 text-muted-foreground" /></button>
-                            <button onClick={() => handleDelete(g.id)} title="Delete" aria-label="Delete row" className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-3.5 h-3.5 text-destructive/70" /></button>
+                          <div className="flex justify-end gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => { setEditId(g.id); setEditStock(String(g.stock_kg)); setEditRate(String(g.rate_per_kg)); }}
+                              aria-label="Edit row"
+                              className="btn-icon w-7 h-7"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(g.id)}
+                              aria-label="Delete row"
+                              className="btn-icon w-7 h-7 hover:bg-destructive/10 hover:text-destructive"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         )}
                       </td>
@@ -393,17 +560,17 @@ const InventoryModule = () => {
                 })}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-primary/30">
-                  <td className="py-3 pr-3 text-xs font-bold text-primary" colSpan={3}>{t("total")}</td>
-                  <td className="py-3 pr-3 text-xs text-right font-bold text-primary">{totalKg}</td>
-                  <td className="py-3 pr-3"></td>
-                  <td className="py-3 pr-3 text-xs text-right font-bold text-primary">৳{totalValue.toLocaleString()}</td>
-                  <td></td>
+                <tr className="border-t-2 border-primary/25 bg-primary/3">
+                  <td className="table-cell font-bold text-primary" colSpan={3}>{t("total")}</td>
+                  <td className="table-cell text-right font-bold text-primary tabular-nums">{Math.round(totalKg)}</td>
+                  <td />
+                  <td className="table-cell text-right font-bold text-primary tabular-nums">৳{Math.round(totalValue).toLocaleString()}</td>
+                  <td />
                 </tr>
               </tfoot>
             </table>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

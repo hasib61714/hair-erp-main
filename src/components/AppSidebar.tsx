@@ -1,11 +1,10 @@
-import { 
-  LayoutDashboard, Package, Factory, ArrowRightLeft, Layers, 
+import {
+  LayoutDashboard, Package, Factory, ArrowRightLeft, Layers,
   BarChart3, Users, Wallet, FileText, TrendingUp, Settings,
   ChevronLeft, ChevronRight, Scissors, Globe, LogOut, Sun, Moon,
   BookOpen, StickyNote, DollarSign, CalendarDays, CreditCard, Truck, Shield,
-  User, KeyRound, Eye, EyeOff, X, Loader2
+  ClipboardList,
 } from "lucide-react";
-import { ClipboardList } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -13,39 +12,72 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { getModulesForRole } from "@/lib/roleAccess";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const allMenuItems = [
-  { icon: LayoutDashboard, labelKey: "dashboard" as const, id: "dashboard" },
-  { icon: Package, labelKey: "purchase" as const, id: "purchase" },
-  { icon: Factory, labelKey: "factories" as const, id: "factories" },
-  { icon: ArrowRightLeft, labelKey: "transfers" as const, id: "transfers" },
-  { icon: Layers, labelKey: "production" as const, id: "production" },
-  { icon: Scissors, labelKey: "inventory" as const, id: "inventory" },
-  { icon: ClipboardList, labelKey: "twobytwoStock" as const, id: "twobytwo_stock" },
-  { icon: Package, labelKey: "gutiStock" as const, id: "guti_stock" },
-  { icon: Users, labelKey: "sales" as const, id: "sales" },
-  { icon: BarChart3, labelKey: "party" as const, id: "party" },
-  { icon: Wallet, labelKey: "cash" as const, id: "cash" },
-  { icon: BookOpen, labelKey: "ledger" as const, id: "ledger" },
-  { icon: FileText, labelKey: "challan" as const, id: "challan" },
-  { icon: ClipboardList, labelKey: "booking" as const, id: "booking_slip" },
-  { icon: TrendingUp, labelKey: "analytics" as const, id: "analytics" },
-  { icon: DollarSign, labelKey: "profitLoss" as const, id: "profit_loss" },
-  { icon: CalendarDays, labelKey: "dailyReport" as const, id: "daily_report" },
-  { icon: CreditCard, labelKey: "buyerDues" as const, id: "buyer_dues" },
-  { icon: Users, labelKey: "buyerProfiles" as const, id: "buyer_profiles" },
-  { icon: Truck, labelKey: "suppliers" as const, id: "suppliers" },
-  { icon: Shield, labelKey: "auditLog" as const, id: "audit_log" },
-  { icon: StickyNote, labelKey: "companyPad" as const, id: "company_pad" },
-  { icon: Settings, labelKey: "settings" as const, id: "settings" },
+// ── Navigation groups ────────────────────────────────────────────
+type NavItem = { icon: React.ComponentType<{ className?: string }>; labelKey: Parameters<ReturnType<typeof useLanguage>["t"]>[0]; id: string };
+type NavGroup = { labelKey: Parameters<ReturnType<typeof useLanguage>["t"]>[0]; items: NavItem[] };
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    labelKey: "dashboard",
+    items: [
+      { icon: LayoutDashboard, labelKey: "dashboard", id: "dashboard" },
+    ],
+  },
+  {
+    labelKey: "production",
+    items: [
+      { icon: Package,        labelKey: "purchase",     id: "purchase" },
+      { icon: Factory,        labelKey: "factories",    id: "factories" },
+      { icon: ArrowRightLeft, labelKey: "transfers",    id: "transfers" },
+      { icon: Layers,         labelKey: "production",   id: "production" },
+      { icon: Scissors,       labelKey: "inventory",    id: "inventory" },
+      { icon: ClipboardList,  labelKey: "twobytwoStock",id: "twobytwo_stock" },
+      { icon: Package,        labelKey: "gutiStock",    id: "guti_stock" },
+    ],
+  },
+  {
+    labelKey: "sales",
+    items: [
+      { icon: Users,        labelKey: "sales",        id: "sales" },
+      { icon: BarChart3,    labelKey: "party",        id: "party" },
+      { icon: FileText,     labelKey: "challan",      id: "challan" },
+      { icon: ClipboardList,labelKey: "booking",      id: "booking_slip" },
+    ],
+  },
+  {
+    labelKey: "cash",
+    items: [
+      { icon: Wallet,      labelKey: "cash",          id: "cash" },
+      { icon: BookOpen,    labelKey: "ledger",        id: "ledger" },
+      { icon: DollarSign,  labelKey: "profitLoss",    id: "profit_loss" },
+      { icon: CreditCard,  labelKey: "buyerDues",     id: "buyer_dues" },
+      { icon: Users,       labelKey: "buyerProfiles", id: "buyer_profiles" },
+      { icon: Truck,       labelKey: "suppliers",     id: "suppliers" },
+    ],
+  },
+  {
+    labelKey: "analytics",
+    items: [
+      { icon: TrendingUp,   labelKey: "analytics",   id: "analytics" },
+      { icon: CalendarDays, labelKey: "dailyReport",  id: "daily_report" },
+      { icon: Shield,       labelKey: "auditLog",     id: "audit_log" },
+      { icon: StickyNote,   labelKey: "companyPad",   id: "company_pad" },
+    ],
+  },
+  {
+    labelKey: "settings",
+    items: [
+      { icon: Settings, labelKey: "settings", id: "settings" },
+    ],
+  },
 ];
 
-const roleLabels: Record<string, "admin" | "factoryManager" | "accountant"> = {
-  admin: "admin",
+const ROLE_LABEL_KEYS: Record<string, "admin" | "factoryManager" | "accountant"> = {
+  admin:           "admin",
   factory_manager: "factoryManager",
-  accountant: "accountant",
+  accountant:      "accountant",
 };
 
 interface AppSidebarProps {
@@ -54,249 +86,232 @@ interface AppSidebarProps {
   onClose?: () => void;
 }
 
+const NavButton = ({
+  item,
+  active,
+  collapsed,
+  onClick,
+}: {
+  item: NavItem;
+  active: boolean;
+  collapsed: boolean;
+  onClick: () => void;
+}) => {
+  const { t } = useLanguage();
+  const label = t(item.labelKey);
+
+  const btn = (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 rounded-lg text-sm transition-all duration-150 group",
+        collapsed ? "h-9 w-9 justify-center px-0 mx-auto" : "px-3 py-2",
+        active
+          ? "bg-primary/10 text-primary font-semibold"
+          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+      )}
+    >
+      <item.icon className={cn(
+        "shrink-0 transition-colors",
+        collapsed ? "w-[18px] h-[18px]" : "w-[17px] h-[17px]",
+        active ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+      )} />
+      {!collapsed && <span className="truncate leading-none">{label}</span>}
+      {!collapsed && active && (
+        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+      )}
+    </button>
+  );
+
+  if (!collapsed) return btn;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{btn}</TooltipTrigger>
+      <TooltipContent side="right" className="text-xs">{label}</TooltipContent>
+    </Tooltip>
+  );
+};
+
 const AppSidebar = ({ activeModule, onModuleChange, onClose }: AppSidebarProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const { t, lang, setLang } = useLanguage();
-  const { user, role, signOut } = useAuth();
+  const { role, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { settings } = useCompanySettings();
 
-  const [showProfile, setShowProfile] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPw, setShowPw] = useState(false);
-  const [showConfirmPw, setShowConfirmPw] = useState(false);
-  const [pwLoading, setPwLoading] = useState(false);
-
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword.length < 6) { toast.error("পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে"); return; }
-    if (newPassword !== confirmPassword) { toast.error("পাসওয়ার্ড মিলছে না"); return; }
-    setPwLoading(true);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
-    setPwLoading(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success("পাসওয়ার্ড পরিবর্তন হয়েছে");
-    setNewPassword(""); setConfirmPassword(""); setShowProfile(false);
-  };
-
   const allowedModules = getModulesForRole(role);
-  const menuItems = allMenuItems.filter((item) => allowedModules.includes(item.id));
 
   const handleModuleChange = (id: string) => {
     onModuleChange(id);
     onClose?.();
   };
 
+  const visibleGroups = NAV_GROUPS
+    .map(group => ({
+      ...group,
+      items: group.items.filter(item => allowedModules.includes(item.id)),
+    }))
+    .filter(group => group.items.length > 0);
+
+  const roleKey = ROLE_LABEL_KEYS[role ?? "accountant"] ?? "accountant";
+
   return (
-    <>
-    <aside
-      className={cn(
-        "h-screen flex flex-col border-r border-sidebar-border transition-all duration-300 bg-gradient-sidebar",
-        collapsed ? "w-[68px]" : "w-[260px]"
-      )}
-    >
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-4 h-16 border-b border-sidebar-border">
-        <div className="w-9 h-9 rounded-lg bg-gradient-gold flex items-center justify-center shrink-0 overflow-hidden">
-          {settings.logo_url ? (
-            <img src={settings.logo_url} alt="Logo" className="w-full h-full object-contain" />
-          ) : (
-            <span className="text-sm font-bold text-primary-foreground">MH</span>
+    <TooltipProvider delayDuration={300}>
+      <aside
+        className={cn(
+          "h-screen flex flex-col bg-gradient-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out",
+          collapsed ? "w-[60px]" : "w-[248px]"
+        )}
+      >
+        {/* ── Logo ─────────────────────────────────────────────── */}
+        <div className={cn(
+          "flex items-center h-14 border-b border-sidebar-border shrink-0",
+          collapsed ? "justify-center px-0" : "gap-2.5 px-4"
+        )}>
+          <div className="w-8 h-8 rounded-lg bg-gradient-gold flex items-center justify-center shrink-0 overflow-hidden shadow-gold">
+            {settings.logo_url ? (
+              <img src={settings.logo_url} alt="Logo" className="w-full h-full object-contain" />
+            ) : (
+              <span className="text-[11px] font-extrabold text-primary-foreground tracking-tight">MH</span>
+            )}
+          </div>
+          {!collapsed && (
+            <div className="overflow-hidden min-w-0">
+              <h1 className="text-[13px] font-bold text-foreground truncate leading-tight">
+                {settings.company_name || "Mahin Enterprise"}
+              </h1>
+              <p className="text-[10px] text-muted-foreground truncate">{t("hairProcessingErp")}</p>
+            </div>
           )}
         </div>
-        {!collapsed && (
-          <div className="overflow-hidden">
-            <h1 className="text-sm font-bold text-foreground truncate">Mahin Enterprise</h1>
-            <p className="text-[11px] text-muted-foreground truncate">{t("hairProcessingErp")}</p>
+
+        {/* ── Role badge ───────────────────────────────────────── */}
+        {!collapsed && role && (
+          <div className="px-4 pt-3 pb-1">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-primary/10 text-primary border border-primary/15">
+              {t(roleKey)}
+            </span>
           </div>
         )}
-      </div>
 
-      {/* Role badge */}
-      {!collapsed && role && (
-        <div className="px-4 py-2 border-b border-sidebar-border">
-          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-medium bg-primary/15 text-primary">
-            {t(roleLabels[role] || "accountant")}
-          </span>
-        </div>
-      )}
-
-      {/* User profile section */}
-      {!collapsed && user && (
-        <button
-          type="button"
-          onClick={() => setShowProfile(true)}
-          className="mx-3 mt-2 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg border border-border/50 bg-secondary/30 hover:bg-secondary/60 transition-colors text-left"
-        >
-          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-            <User className="w-4 h-4 text-primary" />
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-xs font-medium text-foreground truncate">
-              {user.user_metadata?.full_name || user.email?.split("@")[0] || "User"}
-            </p>
-            <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
-          </div>
-        </button>
-      )}
-
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-        {menuItems.map((item) => {
-          const isActive = activeModule === item.id;
-          return (
-            <button
-              key={item.id}
-              onClick={() => handleModuleChange(item.id)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-200",
-                isActive
-                  ? "bg-primary/15 text-primary font-medium shadow-gold"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        {/* ── Navigation ───────────────────────────────────────── */}
+        <nav className="flex-1 overflow-y-auto py-2 space-y-0.5 scrollbar-thin">
+          {visibleGroups.map((group, gi) => (
+            <div key={gi} className={collapsed ? "px-2" : "px-2"}>
+              {!collapsed && gi > 0 && (
+                <div className="pt-3 pb-1 px-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                    {t(group.labelKey)}
+                  </span>
+                </div>
               )}
-            >
-              <item.icon className={cn("w-[18px] h-[18px] shrink-0", isActive && "text-primary")} />
-              {!collapsed && <span className="truncate">{t(item.labelKey)}</span>}
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Theme toggle */}
-      {!collapsed && (
-        <div className="px-3 py-1 border-t border-sidebar-border">
-          <button
-            onClick={toggleTheme}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-          >
-            {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            {theme === "dark" ? "Light Mode" : "Dark Mode"}
-          </button>
-        </div>
-      )}
-
-      {/* Language toggle */}
-      {!collapsed && (
-        <div className="px-3 py-1">
-          <button
-            onClick={() => setLang(lang === "bn" ? "en" : "bn")}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-          >
-            <Globe className="w-4 h-4" />
-            {lang === "bn" ? "🇬🇧 English" : "🇧🇩 বাংলা"}
-          </button>
-        </div>
-      )}
-
-      {/* Logout */}
-      {!collapsed && (
-        <div className="px-3 py-2 border-t border-sidebar-border">
-          <button
-            onClick={signOut}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            {t("logout")}
-          </button>
-        </div>
-      )}
-
-      {/* Collapse toggle (hidden on mobile) */}
-      <button
-        onClick={() => setCollapsed(!collapsed)}
-        className="hidden md:flex items-center justify-center h-10 border-t border-sidebar-border text-muted-foreground hover:text-foreground transition-colors"
-      >
-        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-      </button>
-
-      {/* Developer credit */}
-      {!collapsed && (
-        <div className="px-3 py-2 text-center">
-          <p className="text-[10px] text-muted-foreground/40">Developed by</p>
-          <p className="text-[10px] font-semibold text-muted-foreground/60">Md. Hasibul Hasan</p>
-        </div>
-      )}
-    </aside>
-
-    {/* Profile Modal */}
-    {showProfile && user && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowProfile(false)}>
-        <div className="w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl p-6 space-y-5" onClick={e => e.stopPropagation()}>
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                <User className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {user.user_metadata?.full_name || user.email?.split("@")[0] || "User"}
-                </p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
+              {collapsed && gi > 0 && (
+                <div className="my-1.5 h-px bg-sidebar-border mx-1" />
+              )}
+              <div className="space-y-0.5">
+                {group.items.map(item => (
+                  <NavButton
+                    key={item.id}
+                    item={item}
+                    active={activeModule === item.id}
+                    collapsed={collapsed}
+                    onClick={() => handleModuleChange(item.id)}
+                  />
+                ))}
               </div>
             </div>
-            <button type="button" title="বন্ধ করুন" onClick={() => setShowProfile(false)} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+          ))}
+        </nav>
 
-          {/* Role */}
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/20">
-            <Shield className="w-4 h-4 text-primary" />
-            <span className="text-xs font-medium text-primary">{t(roleLabels[role || "accountant"] || "accountant")}</span>
-          </div>
-
-          {/* Change password form */}
-          <form onSubmit={handleChangePassword} className="space-y-3">
-            <div className="flex items-center gap-2 mb-1">
-              <KeyRound className="w-4 h-4 text-muted-foreground" />
-              <span className="text-xs font-semibold text-foreground">পাসওয়ার্ড পরিবর্তন</span>
-            </div>
-
-            <div className="relative">
-              <input
-                type={showPw ? "text" : "password"}
-                placeholder="নতুন পাসওয়ার্ড"
-                value={newPassword}
-                onChange={e => setNewPassword(e.target.value)}
-                className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 pr-9 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <button type="button" onClick={() => setShowPw(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                {showPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+        {/* ── Bottom actions ───────────────────────────────────── */}
+        <div className={cn(
+          "border-t border-sidebar-border pb-2 pt-1.5 shrink-0",
+          collapsed ? "flex flex-col items-center gap-0.5 px-2" : "px-3 space-y-0.5"
+        )}>
+          {/* Theme toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg text-[12px] text-sidebar-foreground hover:bg-sidebar-accent transition-colors",
+                  collapsed ? "w-9 h-9 justify-center" : "w-full px-3 py-2"
+                )}
+              >
+                {theme === "dark"
+                  ? <Sun className="w-4 h-4 shrink-0" />
+                  : <Moon className="w-4 h-4 shrink-0" />}
+                {!collapsed && (theme === "dark" ? "Light Mode" : "Dark Mode")}
               </button>
-            </div>
+            </TooltipTrigger>
+            {collapsed && (
+              <TooltipContent side="right" className="text-xs">
+                {theme === "dark" ? "Light Mode" : "Dark Mode"}
+              </TooltipContent>
+            )}
+          </Tooltip>
 
-            <div className="relative">
-              <input
-                type={showConfirmPw ? "text" : "password"}
-                placeholder="পাসওয়ার্ড নিশ্চিত করুন"
-                value={confirmPassword}
-                onChange={e => setConfirmPassword(e.target.value)}
-                className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 pr-9 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-              />
-              <button type="button" onClick={() => setShowConfirmPw(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                {showConfirmPw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          {/* Language toggle */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => setLang(lang === "bn" ? "en" : "bn")}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg text-[12px] text-sidebar-foreground hover:bg-sidebar-accent transition-colors",
+                  collapsed ? "w-9 h-9 justify-center" : "w-full px-3 py-2"
+                )}
+              >
+                <Globe className="w-4 h-4 shrink-0" />
+                {!collapsed && (lang === "bn" ? "🇬🇧 English" : "🇧🇩 বাংলা")}
               </button>
-            </div>
-
-            <button type="submit" disabled={pwLoading || !newPassword}
-              className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-2 hover:bg-primary/90 disabled:opacity-50 transition-colors">
-              {pwLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
-              পাসওয়ার্ড সেভ করুন
-            </button>
-          </form>
+            </TooltipTrigger>
+            {collapsed && (
+              <TooltipContent side="right" className="text-xs">
+                {lang === "bn" ? "Switch to English" : "বাংলায় পরিবর্তন"}
+              </TooltipContent>
+            )}
+          </Tooltip>
 
           {/* Logout */}
-          <button type="button" onClick={signOut}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs text-destructive border border-destructive/30 hover:bg-destructive/10 transition-colors">
-            <LogOut className="w-4 h-4" />
-            লগআউট
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={signOut}
+                className={cn(
+                  "flex items-center gap-2.5 rounded-lg text-[12px] text-destructive hover:bg-destructive/10 transition-colors",
+                  collapsed ? "w-9 h-9 justify-center" : "w-full px-3 py-2"
+                )}
+              >
+                <LogOut className="w-4 h-4 shrink-0" />
+                {!collapsed && t("logout")}
+              </button>
+            </TooltipTrigger>
+            {collapsed && (
+              <TooltipContent side="right" className="text-xs text-destructive">
+                {t("logout")}
+              </TooltipContent>
+            )}
+          </Tooltip>
         </div>
-      </div>
-    )}
-    </>
+
+        {/* ── Collapse toggle ──────────────────────────────────── */}
+        <button
+          type="button"
+          onClick={() => setCollapsed(v => !v)}
+          className="hidden md:flex items-center justify-center h-9 border-t border-sidebar-border text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors shrink-0"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {collapsed
+            ? <ChevronRight className="w-3.5 h-3.5" />
+            : <ChevronLeft className="w-3.5 h-3.5" />}
+        </button>
+      </aside>
+    </TooltipProvider>
   );
 };
 

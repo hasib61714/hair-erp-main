@@ -7,6 +7,7 @@ import AppSidebar from "@/components/AppSidebar";
 import AppTopBar from "@/components/layout/AppTopBar";
 import MobileSidebarOverlay from "@/components/layout/MobileSidebarOverlay";
 import DashboardContent from "@/components/DashboardContent";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 
 const PurchaseModule     = lazy(() => import("@/components/modules/PurchaseModule"));
 const ProductionModule   = lazy(() => import("@/components/modules/ProductionModule"));
@@ -32,51 +33,72 @@ const AuditLogModule     = lazy(() => import("@/components/modules/AuditLogModul
 const SettingsModule     = lazy(() => import("@/components/modules/SettingsModule"));
 
 const ROLE_LABELS: Record<string, Record<string, string>> = {
-  admin: { bn: "অ্যাডমিন", en: "Admin" },
+  admin:           { bn: "অ্যাডমিন",           en: "Admin" },
   factory_manager: { bn: "ফ্যাক্টরি ম্যানেজার", en: "Factory Manager" },
-  accountant: { bn: "হিসাবরক্ষক", en: "Accountant" },
+  accountant:      { bn: "হিসাবরক্ষক",          en: "Accountant" },
 };
 
+// Loading skeleton shown while a lazy module chunk is being fetched
 const ModuleFallback = () => (
-  <div className="flex items-center justify-center py-24">
-    <div className="w-8 h-8 rounded-xl bg-gradient-gold animate-pulse" />
+  <div className="page-container animate-fade-in">
+    <div className="flex items-center gap-3 mb-6">
+      <div className="skeleton w-9 h-9 rounded-lg" />
+      <div className="space-y-1.5">
+        <div className="skeleton w-40 h-5 rounded" />
+        <div className="skeleton w-24 h-3 rounded" />
+      </div>
+    </div>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      {[0, 1, 2, 3].map(i => (
+        <div key={i} className="rounded-xl border border-border p-5 bg-card space-y-3">
+          <div className="skeleton w-10 h-10 rounded-lg" />
+          <div className="skeleton w-20 h-4 rounded" />
+          <div className="skeleton w-28 h-7 rounded" />
+        </div>
+      ))}
+    </div>
+    <div className="skeleton w-full h-48 rounded-xl" />
   </div>
 );
 
+const MODULE_MAP: Record<string, React.ReactNode> = {
+  purchase:       <PurchaseModule />,
+  factories:      <FactoryModule />,
+  transfers:      <TransferModule />,
+  production:     <ProductionModule />,
+  inventory:      <InventoryModule />,
+  twobytwo_stock: <TwoByTwoStockModule />,
+  sales:          <SalesModule />,
+  guti_stock:     <GutiStockModule />,
+  party:          <PartyModule />,
+  cash:           <CashModule />,
+  ledger:         <LedgerModule />,
+  challan:        <ChallanModule />,
+  booking_slip:   <BookingSlipModule />,
+  company_pad:    <CompanyPadModule />,
+  profit_loss:    <ProfitLossModule />,
+  daily_report:   <DailyReportModule />,
+  buyer_dues:     <BuyerDueModule />,
+  buyer_profiles: <BuyerProfileModule />,
+  suppliers:      <SupplierModule />,
+  audit_log:      <AuditLogModule />,
+  analytics:      <AnalyticsModule />,
+  settings:       <SettingsModule />,
+};
+
 const renderModule = (activeModule: string) => {
-  let content: React.ReactNode;
-  switch (activeModule) {
-    case "purchase":       content = <PurchaseModule />;      break;
-    case "factories":      content = <FactoryModule />;       break;
-    case "transfers":      content = <TransferModule />;      break;
-    case "production":     content = <ProductionModule />;    break;
-    case "inventory":      content = <InventoryModule />;     break;
-    case "twobytwo_stock": content = <TwoByTwoStockModule />; break;
-    case "sales":          content = <SalesModule />;         break;
-    case "guti_stock":     content = <GutiStockModule />;     break;
-    case "party":          content = <PartyModule />;         break;
-    case "cash":           content = <CashModule />;          break;
-    case "ledger":         content = <LedgerModule />;        break;
-    case "challan":        content = <ChallanModule />;       break;
-    case "booking_slip":   content = <BookingSlipModule />;   break;
-    case "company_pad":    content = <CompanyPadModule />;    break;
-    case "profit_loss":    content = <ProfitLossModule />;    break;
-    case "daily_report":   content = <DailyReportModule />;   break;
-    case "buyer_dues":     content = <BuyerDueModule />;      break;
-    case "buyer_profiles": content = <BuyerProfileModule />;  break;
-    case "suppliers":      content = <SupplierModule />;      break;
-    case "audit_log":      content = <AuditLogModule />;      break;
-    case "analytics":      content = <AnalyticsModule />;     break;
-    case "settings":       content = <SettingsModule />;      break;
-    default:               content = <DashboardContent />;
-  }
-  return <Suspense fallback={<ModuleFallback />}>{content}</Suspense>;
+  const content = MODULE_MAP[activeModule] ?? <DashboardContent />;
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<ModuleFallback />}>{content}</Suspense>
+    </ErrorBoundary>
+  );
 };
 
 const Index = () => {
-  const [activeModule, setActiveModule] = useState("dashboard");
+  const [activeModule,  setActiveModule]  = useState("dashboard");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [welcomeShown, setWelcomeShown] = useState(false);
+  const [welcomeShown,  setWelcomeShown]  = useState(false);
 
   const { user, role } = useAuth();
   const { lang } = useLanguage();
@@ -87,7 +109,7 @@ const Index = () => {
       toast.success(
         lang === "bn"
           ? `স্বাগতম! আপনি ${roleName} হিসেবে লগইন করেছেন`
-          : `Welcome! You are logged in as ${roleName}`
+          : `Welcome! Logged in as ${roleName}`
       );
       setWelcomeShown(true);
     }
@@ -96,11 +118,11 @@ const Index = () => {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Desktop sidebar */}
-      <div className="hidden md:block sticky top-0 h-screen">
+      <div className="hidden md:block sticky top-0 h-screen shrink-0">
         <AppSidebar activeModule={activeModule} onModuleChange={setActiveModule} />
       </div>
 
-      {/* Mobile sidebar */}
+      {/* Mobile sidebar overlay */}
       <MobileSidebarOverlay
         isOpen={mobileMenuOpen}
         activeModule={activeModule}
@@ -108,14 +130,15 @@ const Index = () => {
         onClose={() => setMobileMenuOpen(false)}
       />
 
-      <main className="flex-1 overflow-y-auto min-w-0">
+      {/* Main content */}
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <AppTopBar
           activeModule={activeModule}
           onModuleChange={setActiveModule}
           onOpenMobileMenu={() => setMobileMenuOpen(true)}
         />
 
-        <div className="p-4 md:p-6 max-w-[1400px]">
+        <div className="flex-1 p-4 md:p-6 max-w-[1440px] w-full mx-auto">
           {renderModule(activeModule)}
         </div>
       </main>

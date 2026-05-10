@@ -320,7 +320,11 @@ const translations = {
   buyerDues: { bn: "বায়ার বকেয়া", en: "Buyer Dues" },
   suppliers: { bn: "সরবরাহকারী", en: "Suppliers" },
   auditLog: { bn: "অডিট লগ", en: "Audit Log" },
-  buyerProfiles: { bn: "বায়ার প্রোফাইল", en: "Buyer Profiles" },
+  buyerProfiles:     { bn: "বায়ার প্রোফাইল",                        en: "Buyer Profiles" },
+  markedPaid:        { bn: "পরিশোধিত হিসেবে চিহ্নিত করা হয়েছে",       en: "Marked as paid" },
+  paidSealRemoved:   { bn: "পরিশোধিত চিহ্ন সরানো হয়েছে",              en: "Paid seal removed" },
+  confirmDeleteItem: { bn: "এই আইটেম মুছে ফেলতে চান?",                en: "Delete this item?" },
+  challanNotes:      { bn: "নিচের নোট (চালানের বাম কোণে)",             en: "Bottom notes (challan left)" },
 } as const;
 
 type TranslationKey = keyof typeof translations;

@@ -5,10 +5,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { FileText, Plus, Pencil, Printer, Trash2, Minus, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useConfirm } from "@/contexts/ConfirmContext";
-import type { Json } from "@/integrations/supabase/types";
 import { useCompanySettings } from "@/hooks/useCompanySettings";
 import { usePermissions } from "@/hooks/usePermissions";
 import PrintToolbar from "@/components/PrintToolbar";
+import PageHeader from "@/components/ui/page-header";
+
+/** Safely serialises any value to a Supabase-compatible Json column. */
+const toJson = <T,>(value: T) => JSON.parse(JSON.stringify(value)) as T;
 
 type GradeDetail = { grade: string; kg: number; rate: number; remarks?: string };
 type ChallanNotes = { ri?: number; chhat?: number; giti?: number };
@@ -91,8 +94,8 @@ const ChallanModule = () => {
     if (noteGiti) notesParsed.giti = parseFloat(noteGiti);
     const payload = {
       challan_no: finalChallanNo, buyer_name: buyerName, buyer_country: buyerCountry, product_type: challanProductType, challan_date: challanDate,
-      grade_details: gDetails as unknown as Json, total_amount: total, advance_amount: adv, due_amount: total - adv,
-      description: description || null, notes: Object.keys(notesParsed).length ? notesParsed as unknown as Json : null,
+      grade_details: toJson(gDetails), total_amount: total, advance_amount: adv, due_amount: total - adv,
+      description: description || null, notes: Object.keys(notesParsed).length ? toJson(notesParsed) : null,
     };
 
     if (editId) {
@@ -121,18 +124,18 @@ const ChallanModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!(await confirm("নিশ্চিত করুন — এই চালান মুছে ফেলা হবে?"))) return;
+    if (!(await confirm(t("confirmDeleteItem")))) return;
     const { error } = await supabase.from("challans").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("ডিলিট হয়েছে"); fetchData();
+    toast.success(t("deleted")); fetchData();
   };
 
   const togglePaid = async (c: Challan) => {
     const newVal = !c.is_paid;
-    const { error } = await (supabase.from("challans") as any).update({ is_paid: newVal }).eq("id", c.id);
+    const { error } = await supabase.from("challans").update({ is_paid: newVal } as Record<string, unknown>).eq("id", c.id);
     if (error) { toast.error(error.message); return; }
     setData(prev => prev.map(x => x.id === c.id ? { ...x, is_paid: newVal } : x));
-    toast.success(newVal ? "PAID সিল দেওয়া হয়েছে" : "PAID সিল সরানো হয়েছে");
+    toast.success(newVal ? t("markedPaid") : t("paidSealRemoved"));
   };
 
   const updateGradeRow = (i: number, field: keyof GradeDetail, val: string | number) => {
@@ -293,46 +296,42 @@ ${company.logo_url ? `<div class="watermark"><img src="${company.logo_url}"/></d
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{t("challanModule")}</h2>
-          <p className="text-xs text-muted-foreground">{t("challanHistory")}</p>
-        </div>
-        <button type="button" onClick={() => { resetForm(); setShowForm(!showForm); }} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-gold text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
+    <div className="page-container">
+      <PageHeader title={t("challanModule")} description={t("challanHistory")} icon={FileText}>
+        <button type="button" onClick={() => { resetForm(); setShowForm(!showForm); }} className="btn-primary">
           <Plus className="w-4 h-4" />{t("createChallan")}
         </button>
-      </div>
+      </PageHeader>
 
       {showForm && (
-        <div className="rounded-xl border border-primary/20 p-6 bg-gradient-card shadow-card animate-slide-in">
+        <div className="rounded-xl border border-primary/25 bg-card shadow-card p-5 animate-slide-up">
           <h3 className="text-sm font-semibold text-foreground mb-4">{editId ? t("edit") : t("createChallan")}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-4">
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("challanNo")}</label>
-              <input value={challanNo} onChange={e => setChallanNo(e.target.value)} placeholder="অটো জেনারেট হবে" className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={challanNo} onChange={e => setChallanNo(e.target.value)} placeholder="অটো জেনারেট হবে" className="input-base" />
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("buyerName")}</label>
-              <input aria-label="Buyer name" value={buyerName} onChange={e => setBuyerName(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input aria-label="Buyer name" value={buyerName} onChange={e => setBuyerName(e.target.value)} className="input-base" />
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("buyerCountry")}</label>
-              <select aria-label="Buyer country" value={buyerCountry} onChange={e => setBuyerCountry(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select aria-label="Buyer country" value={buyerCountry} onChange={e => setBuyerCountry(e.target.value)} className="input-base">
                 {countryOptions.map(c => <option key={c.value} value={c.value}>{t(c.labelKey)}</option>)}
               </select>
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("productType")}</label>
-              <select aria-label="Product type" value={challanProductType} onChange={e => setChallanProductType(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <select aria-label="Product type" value={challanProductType} onChange={e => setChallanProductType(e.target.value)} className="input-base">
                 <option value="guti">{t("gutiProduct")}</option>
                 <option value="kachi">{t("kachiProduct")}</option>
                 <option value="two_by_two">{t("twobytwoProduct")}</option>
               </select>
             </div>
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("date")}</label>
-              <input aria-label="Challan date" type="date" value={challanDate} onChange={e => setChallanDate(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input aria-label="Challan date" type="date" value={challanDate} onChange={e => setChallanDate(e.target.value)} className="input-base" />
             </div>
           </div>
           <div className="mb-4">
             <label className="text-xs text-muted-foreground mb-1 block">বিবরণ / Description</label>
-            <input aria-label="Description" value={description} onChange={e => setDescription(e.target.value)} placeholder="পণ্যের বিবরণ লিখুন..." className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+            <input aria-label="Description" value={description} onChange={e => setDescription(e.target.value)} placeholder="পণ্যের বিবরণ লিখুন..." className="input-base" />
           </div>
           {isGuti ? (
             <div className="mb-4">
@@ -362,14 +361,14 @@ ${company.logo_url ? `<div class="watermark"><img src="${company.logo_url}"/></d
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div><label className="text-xs text-muted-foreground mb-1 block">{t("advance")}</label>
-              <input aria-label="Advance amount" type="number" value={advanceAmt} onChange={e => setAdvanceAmt(e.target.value)} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input aria-label="Advance amount" type="number" value={advanceAmt} onChange={e => setAdvanceAmt(e.target.value)} className="input-base" />
             </div>
             <div className="flex items-end"><p className="text-sm text-foreground">
               {isGuti ? `${t("total")}: ${totalKg} KG` : `${t("total")}: ৳${totalCalc.toLocaleString()} | ${t("due")}: ৳${(totalCalc - (parseFloat(advanceAmt) || 0)).toLocaleString()}`}
             </p></div>
           </div>
           <div className="mb-4">
-            <p className="text-xs text-muted-foreground mb-2">নিচের নোট (চালানের বাম কোণে)</p>
+            <p className="text-label mb-2">{t("challanNotes")}</p>
             <div className="grid grid-cols-3 gap-3">
               <div><label className="text-xs text-muted-foreground mb-1 block">রি (KG)</label>
                 <input aria-label="Ri kg" type="number" value={noteRi} onChange={e => setNoteRi(e.target.value)} placeholder="রি কেজি" className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground" />
@@ -382,14 +381,21 @@ ${company.logo_url ? `<div class="watermark"><img src="${company.logo_url}"/></d
               </div>
             </div>
           </div>
-          <div className="flex gap-3">
-            <button type="button" onClick={handleSave} className="px-4 py-2 rounded-lg bg-gradient-gold text-primary-foreground text-sm font-medium">{t("save")}</button>
-            <button type="button" onClick={resetForm} className="px-4 py-2 rounded-lg border border-border text-muted-foreground text-sm">{t("cancel")}</button>
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={handleSave} className="btn-primary">{t("save")}</button>
+            <button type="button" onClick={resetForm} className="btn-secondary">{t("cancel")}</button>
           </div>
         </div>
       )}
 
-      {loading ? <p className="text-xs text-muted-foreground">{t("loading")}</p> : data.length === 0 ? <p className="text-xs text-muted-foreground">{t("noData")}</p> : (
+      {loading ? (
+        <p className="text-xs text-muted-foreground animate-pulse">{t("loading")}</p>
+      ) : data.length === 0 ? (
+        <div className="card-base p-10 text-center">
+          <FileText className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">{t("noData")}</p>
+        </div>
+      ) : (
         <>
         <PrintToolbar
           moduleName={t("challanModule")}
@@ -410,7 +416,7 @@ ${company.logo_url ? `<div class="watermark"><img src="${company.logo_url}"/></d
         />
         <div className="space-y-4" id="challan-cards">
           {data.map(c => (
-            <div key={c.id} data-card-id={c.id} className="rounded-xl border border-border p-6 bg-gradient-card shadow-card">
+            <div key={c.id} data-card-id={c.id} className="card-base p-5 hover:border-primary/25 transition-colors">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-primary" />

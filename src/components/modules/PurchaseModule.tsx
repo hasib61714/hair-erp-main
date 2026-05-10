@@ -245,10 +245,10 @@ const PurchaseModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!(await confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?"))) return;
+    if (!(await confirm(t("confirmDeleteItem")))) return;
     const { error } = await supabase.from("purchases").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("ডিলিট হয়েছে");
+    toast.success(t("deleted"));
     queryClient.invalidateQueries({ queryKey: ["purchases"] });
   };
 
@@ -493,7 +493,7 @@ const PurchaseModule = () => {
             const totalPrice = items.reduce((s, p) => s + Number(p.total_price), 0);
             return `<table><thead><tr>
               <th>${t("date")}</th><th>${t("supplier")}</th><th>${t("productType")}</th>
-              <th>গ্রেড বিবরণ</th><th>${t("country")}</th>
+              <th>${t("gradeDetails")}</th><th>${t("country")}</th>
               <th style="text-align:right">${t("weight")}</th>
               <th style="text-align:right">${t("totalPrice")}</th>
               <th>${t("status")}</th>
@@ -604,7 +604,7 @@ const PurchaseModule = () => {
                           </span>
                           {p.middleman_name && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
-                              দালাল: {p.middleman_name}
+                              {t("middleman")}: {p.middleman_name}
                             </span>
                           )}
                           {p.guti_grade && (

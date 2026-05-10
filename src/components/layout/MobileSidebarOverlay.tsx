@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { useEffect } from "react";
 import AppSidebar from "@/components/AppSidebar";
 
 interface Props {
@@ -9,28 +9,43 @@ interface Props {
 }
 
 const MobileSidebarOverlay = ({ isOpen, activeModule, onModuleChange, onClose }: Props) => {
+  // Lock body scroll when open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [isOpen]);
+
+  // Escape key closes the overlay
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 md:hidden">
+    <div className="fixed inset-0 z-50 md:hidden flex">
+      {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
         onClick={onClose}
+        aria-hidden="true"
       />
-      <div className="absolute left-0 top-0 h-full z-50 shadow-xl">
+
+      {/* Drawer panel — slides in from left */}
+      <div className="relative z-10 h-full shadow-xl animate-slide-in">
         <AppSidebar
           activeModule={activeModule}
           onModuleChange={onModuleChange}
           onClose={onClose}
         />
       </div>
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 z-50 w-9 h-9 rounded-lg bg-card border border-border flex items-center justify-center text-foreground"
-        aria-label="Close menu"
-      >
-        <X className="w-5 h-5" />
-      </button>
     </div>
   );
 };

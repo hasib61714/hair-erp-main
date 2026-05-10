@@ -15,9 +15,14 @@ import UpdatePassword from "./pages/UpdatePassword";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 60_000,
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
       retry: 1,
       refetchOnWindowFocus: false,
+      refetchOnMount: true,
+    },
+    mutations: {
+      retry: 0,
     },
   },
 });
@@ -27,7 +32,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-10 h-10 rounded-xl bg-gradient-gold animate-pulse" />
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-gradient-gold animate-pulse-gold shadow-gold" />
+          <div className="flex gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:150ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]" />
+          </div>
+        </div>
       </div>
     );
   }

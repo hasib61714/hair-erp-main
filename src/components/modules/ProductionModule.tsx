@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +8,8 @@ import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import PrintToolbar from "@/components/PrintToolbar";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TableSkeleton } from "@/components/ui/loading-skeleton";
 
 type Batch = {
   id: string; batch_code: string; factory_id: string | null; stage: string;
@@ -15,151 +18,185 @@ type Batch = {
 };
 type FactoryRow = { id: string; name: string };
 
-const stageLabels: Record<string, { bn: string; en: string; color: string }> = {
-  guti: { bn: "গুটি", en: "Guti", color: "bg-info/15 text-info" },
-  kachi: { bn: "কাছি", en: "Kachi", color: "bg-warning/15 text-warning" },
-  twobytwo: { bn: "টু বাই টু", en: "Two by Two", color: "bg-success/15 text-success" },
-  two_by_two: { bn: "টু বাই টু", en: "Two by Two", color: "bg-success/15 text-success" },
+const stageColors: Record<string, string> = {
+  guti:       "bg-info/15 text-info",
+  kachi:      "bg-warning/15 text-warning",
+  twobytwo:   "bg-success/15 text-success",
+  two_by_two: "bg-success/15 text-success",
 };
 
 const ProductionModule = () => {
   const { t, lang } = useLanguage();
   const { user } = useAuth();
   const confirm = useConfirm();
+  const qc = useQueryClient();
   const { can_edit, can_delete } = usePermissions("production");
   const [showForm, setShowForm] = useState(false);
-  const [batches, setBatches] = useState<Batch[]>([]);
-  const [factories, setFactories] = useState<FactoryRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  const [batchCode, setBatchCode] = useState("");
-  const [factoryId, setFactoryId] = useState("");
-  const [stage, setStage] = useState("guti");
-  const [inputWeight, setInputWeight] = useState("");
+  const [batchCode,    setBatchCode]    = useState("");
+  const [factoryId,    setFactoryId]    = useState("");
+  const [stage,        setStage]        = useState("guti");
+  const [inputWeight,  setInputWeight]  = useState("");
   const [outputWeight, setOutputWeight] = useState("");
-  const [status, setStatus] = useState("in_progress");
+  const [status,       setStatus]       = useState("in_progress");
 
-  const fetchData = async () => {
-    const [{ data: b }, { data: f }] = await Promise.all([
-      supabase.from("production_batches").select("*").order("created_at", { ascending: false }),
-      supabase.from("factories").select("id, name"),
-    ]);
-    setBatches(b || []); setFactories(f || []); setLoading(false);
+  const stageLabels: Record<string, { bn: string; en: string }> = {
+    guti:       { bn: "গুটি",         en: "Guti" },
+    kachi:      { bn: "কাছি",         en: "Kachi" },
+    twobytwo:   { bn: "টু বাই টু",   en: "Two by Two" },
+    two_by_two: { bn: "টু বাই টু",   en: "Two by Two" },
   };
-  useEffect(() => { fetchData(); }, []);
+
+  const { data: batches = [], isLoading: batchesLoading } = useQuery<Batch[]>({
+    queryKey: ["production_batches"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("production_batches")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: factories = [] } = useQuery<FactoryRow[]>({
+    queryKey: ["factories_list"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("factories").select("id, name");
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 60_000,
+  });
 
   const resetForm = () => {
-    setBatchCode(""); setFactoryId(""); setStage("guti"); setInputWeight(""); setOutputWeight(""); setStatus("in_progress"); setEditId(null); setShowForm(false);
+    setBatchCode(""); setFactoryId(""); setStage("guti"); setInputWeight("");
+    setOutputWeight(""); setStatus("in_progress"); setEditId(null); setShowForm(false);
   };
 
   const handleSave = async () => {
-    const iw = parseFloat(inputWeight); if (!batchCode || !iw) return;
-    const ow = outputWeight ? parseFloat(outputWeight) : null;
+    const iw = parseFloat(inputWeight);
+    if (!batchCode || !iw) return;
+    const ow   = outputWeight ? parseFloat(outputWeight) : null;
     const loss = ow ? iw - ow : null;
-    const eff = ow ? (ow / iw) * 100 : null;
+    const eff  = ow ? parseFloat(((ow / iw) * 100).toFixed(1)) : null;
 
     if (editId) {
       const { error } = await supabase.from("production_batches").update({
         batch_code: batchCode, factory_id: factoryId || null, stage, input_weight_kg: iw,
-        output_weight_kg: ow, loss_kg: loss, efficiency_pct: eff ? parseFloat(eff.toFixed(1)) : null, status,
+        output_weight_kg: ow, loss_kg: loss, efficiency_pct: eff, status,
       }).eq("id", editId);
       if (error) { toast.error(error.message); return; }
     } else {
       const { error } = await supabase.from("production_batches").insert({
         batch_code: batchCode, factory_id: factoryId || null, stage, input_weight_kg: iw,
-        output_weight_kg: ow, loss_kg: loss, efficiency_pct: eff ? parseFloat(eff.toFixed(1)) : null, status, created_by: user?.id,
+        output_weight_kg: ow, loss_kg: loss, efficiency_pct: eff, status, created_by: user?.id,
       });
       if (error) { toast.error(error.message); return; }
     }
-    toast.success(t("saved")); resetForm(); fetchData();
+    toast.success(t("saved"));
+    resetForm();
+    qc.invalidateQueries({ queryKey: ["production_batches"] });
   };
 
   const handleEdit = (b: Batch) => {
     setEditId(b.id); setBatchCode(b.batch_code); setFactoryId(b.factory_id || ""); setStage(b.stage);
-    setInputWeight(String(b.input_weight_kg)); setOutputWeight(b.output_weight_kg ? String(b.output_weight_kg) : ""); setStatus(b.status); setShowForm(true);
+    setInputWeight(String(b.input_weight_kg)); setOutputWeight(b.output_weight_kg ? String(b.output_weight_kg) : "");
+    setStatus(b.status); setShowForm(true);
   };
 
   const handleDelete = async (id: string) => {
-    if (!(await confirm("নিশ্চিত করুন — এই ব্যাচ মুছে ফেলা হবে?"))) return;
+    if (!(await confirm(t("confirmDeleteItem")))) return;
     const { error } = await supabase.from("production_batches").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("ডিলিট হয়েছে"); fetchData();
+    toast.success(t("deleted"));
+    qc.invalidateQueries({ queryKey: ["production_batches"] });
   };
 
   const getFactoryName = (id: string | null) => factories.find(f => f.id === id)?.name || "—";
 
+  // Only show canonical stages (not duplicates)
+  const displayStages = ["guti", "kachi", "two_by_two"] as const;
+
   return (
-    <div className="space-y-6">
+    <div className="page-container">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-foreground">{t("productionModule")}</h2>
           <p className="text-xs text-muted-foreground">{t("stageWiseProcessing")}</p>
         </div>
-        <button onClick={() => { resetForm(); setShowForm(!showForm); }} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-gold text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity">
+        <button type="button" onClick={() => { resetForm(); setShowForm(!showForm); }} className="btn-primary h-9 px-4 gap-2">
           <Plus className="w-4 h-4" />{t("createBatch")}
         </button>
       </div>
 
       {showForm && (
-        <div className="rounded-xl border border-primary/20 p-6 bg-gradient-card shadow-card animate-slide-in">
+        <div className="card-base p-6 border-primary/20 animate-slide-up">
           <h3 className="text-sm font-semibold text-foreground mb-4">{editId ? t("edit") : t("createBatch")}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">{t("batchCode")}</label>
-              <input value={batchCode} onChange={e => setBatchCode(e.target.value)} title={t("batchCode")} aria-label={t("batchCode")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <label className="text-label mb-1.5 block">{t("batchCode")}</label>
+              <input value={batchCode} onChange={e => setBatchCode(e.target.value)} aria-label={t("batchCode")} className="input-base" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">{t("factory")}</label>
-              <select value={factoryId} onChange={e => setFactoryId(e.target.value)} title={t("factory")} aria-label={t("factory")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <label className="text-label mb-1.5 block">{t("factory")}</label>
+              <select value={factoryId} onChange={e => setFactoryId(e.target.value)} aria-label={t("factory")} className="input-base">
                 <option value="">—</option>
                 {factories.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">{t("stage")}</label>
-              <select value={stage} onChange={e => setStage(e.target.value)} title={t("stage")} aria-label={t("stage")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
-                {Object.entries(stageLabels).map(([k, v]) => <option key={k} value={k}>{v[lang]}</option>)}
+              <label className="text-label mb-1.5 block">{t("stage")}</label>
+              <select value={stage} onChange={e => setStage(e.target.value)} aria-label={t("stage")} className="input-base">
+                {Object.entries(stageLabels)
+                  .filter(([k]) => !k.includes("_") || k === "two_by_two")
+                  .map(([k, v]) => <option key={k} value={k}>{v[lang]}</option>)}
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">{t("inputWeight")}</label>
-              <input type="number" value={inputWeight} onChange={e => setInputWeight(e.target.value)} title={t("inputWeight")} aria-label={t("inputWeight")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <label className="text-label mb-1.5 block">{t("inputWeight")}</label>
+              <input type="number" value={inputWeight} onChange={e => setInputWeight(e.target.value)} aria-label={t("inputWeight")} className="input-base" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">{t("outputWeight")}</label>
-              <input type="number" value={outputWeight} onChange={e => setOutputWeight(e.target.value)} title={t("outputWeight")} aria-label={t("outputWeight")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary" />
+              <label className="text-label mb-1.5 block">{t("outputWeight")}</label>
+              <input type="number" value={outputWeight} onChange={e => setOutputWeight(e.target.value)} aria-label={t("outputWeight")} className="input-base" />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground mb-1 block">{t("status")}</label>
-              <select value={status} onChange={e => setStatus(e.target.value)} title={t("status")} aria-label={t("status")} className="w-full h-9 rounded-lg border border-border bg-secondary/50 px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary">
+              <label className="text-label mb-1.5 block">{t("status")}</label>
+              <select value={status} onChange={e => setStatus(e.target.value)} aria-label={t("status")} className="input-base">
                 <option value="in_progress">{t("inProgress")}</option>
                 <option value="complete">{t("complete")}</option>
               </select>
             </div>
           </div>
           <div className="flex gap-3 mt-4">
-            <button onClick={handleSave} className="px-4 py-2 rounded-lg bg-gradient-gold text-primary-foreground text-sm font-medium">{t("save")}</button>
-            <button onClick={resetForm} className="px-4 py-2 rounded-lg border border-border text-muted-foreground text-sm">{t("cancel")}</button>
+            <button type="button" onClick={handleSave} className="btn-primary h-9 px-4">{t("save")}</button>
+            <button type="button" onClick={resetForm} className="btn-secondary h-9 px-4">{t("cancel")}</button>
           </div>
         </div>
       )}
 
-      {/* Stage Flow */}
+      {/* Stage pipeline flow */}
       <div className="flex items-center gap-3 overflow-x-auto pb-2">
-        {Object.entries(stageLabels).map(([key, val], i) => (
-          <div key={key} className="flex items-center gap-3 shrink-0">
-            <div className={`rounded-lg px-5 py-3 ${val.color} border border-current/10`}>
-              <p className="text-xs font-medium">{val[lang]}</p>
-              <p className="text-lg font-bold">{batches.filter(b => b.stage === key && b.status === "in_progress").length} {t("activeBatches")}</p>
+        {displayStages.map((key, i) => {
+          const label = stageLabels[key];
+          const count = batches.filter(b => (b.stage === key || (key === "two_by_two" && b.stage === "twobytwo")) && b.status === "in_progress").length;
+          return (
+            <div key={key} className="flex items-center gap-3 shrink-0">
+              <div className={`rounded-lg px-5 py-3 ${stageColors[key]} border border-current/10`}>
+                <p className="text-xs font-medium">{label[lang]}</p>
+                <p className="text-lg font-bold">{count} {t("activeBatches")}</p>
+              </div>
+              {i < displayStages.length - 1 && <ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />}
             </div>
-            {i < 2 && <ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      <div className="rounded-xl border border-border p-6 bg-gradient-card shadow-card">
+      <div className="card-base p-6">
         <h3 className="text-sm font-semibold text-foreground mb-4">{t("batchTracking")}</h3>
         <PrintToolbar
           moduleName={t("batchTracking")}
@@ -170,51 +207,78 @@ const ProductionModule = () => {
           cardContainerId="production-cards"
           renderPrintTable={(items) => `
             <table><thead><tr><th>${t("batchId")}</th><th>${t("factory")}</th><th>${t("stage")}</th><th>${t("inputWeight")}</th><th>${t("outputWeight")}</th><th>${t("lossWeight")}</th><th>${t("efficiency")}</th><th>${t("status")}</th></tr></thead>
-            <tbody>${items.map((b: any) => `<tr><td>${b.batch_code}</td><td>${getFactoryName(b.factory_id)}</td><td>${stageLabels[b.stage]?.[lang] || b.stage}</td><td>${b.input_weight_kg} KG</td><td>${b.output_weight_kg ? b.output_weight_kg + " KG" : "—"}</td><td>${b.loss_kg ? b.loss_kg + " KG" : "—"}</td><td>${b.efficiency_pct ? b.efficiency_pct + "%" : "—"}</td><td>${b.status}</td></tr>`).join("")}
-            <tr class="total-row"><td colspan="3">${t("total")}</td><td>${items.reduce((s: number, b: any) => s + Number(b.input_weight_kg), 0)} KG</td><td>${items.reduce((s: number, b: any) => s + Number(b.output_weight_kg || 0), 0)} KG</td><td>${items.reduce((s: number, b: any) => s + Number(b.loss_kg || 0), 0)} KG</td><td></td><td></td></tr>
+            <tbody>${items.map((b: Batch) => `<tr><td>${b.batch_code}</td><td>${getFactoryName(b.factory_id)}</td><td>${stageLabels[b.stage]?.[lang] || b.stage}</td><td>${b.input_weight_kg} KG</td><td>${b.output_weight_kg ? b.output_weight_kg + " KG" : "—"}</td><td>${b.loss_kg ? b.loss_kg + " KG" : "—"}</td><td>${b.efficiency_pct ? b.efficiency_pct + "%" : "—"}</td><td>${b.status}</td></tr>`).join("")}
+            <tr class="total-row"><td colspan="3">${t("total")}</td><td>${items.reduce((s: number, b: Batch) => s + Number(b.input_weight_kg), 0)} KG</td><td>${items.reduce((s: number, b: Batch) => s + Number(b.output_weight_kg || 0), 0)} KG</td><td>${items.reduce((s: number, b: Batch) => s + Number(b.loss_kg || 0), 0)} KG</td><td></td><td></td></tr>
             </tbody></table>
           `}
         />
-        {loading ? <p className="text-xs text-muted-foreground">{t("loading")}</p> : batches.length === 0 ? <p className="text-xs text-muted-foreground">{t("noData")}</p> : (
+
+        {batchesLoading ? (
+          <TableSkeleton rows={4} />
+        ) : batches.length === 0 ? (
+          <EmptyState title={t("noData")} compact />
+        ) : (
           <div className="space-y-4" id="production-cards">
             {batches.map(b => (
-              <div key={b.id} data-card-id={b.id} onClick={() => { const s = new Set(selectedIds); s.has(b.id) ? s.delete(b.id) : s.add(b.id); setSelectedIds(s); }} className={`rounded-xl border p-6 bg-gradient-card shadow-card cursor-pointer transition-all ${selectedIds.has(b.id) ? "border-primary ring-2 ring-primary/20" : "border-border hover:border-primary/30"}`}>
+              <div
+                key={b.id}
+                data-card-id={b.id}
+                onClick={() => { const s = new Set(selectedIds); s.has(b.id) ? s.delete(b.id) : s.add(b.id); setSelectedIds(s); }}
+                className={`card-base p-6 cursor-pointer transition-all ${
+                  selectedIds.has(b.id) ? "border-primary ring-2 ring-primary/20" : "card-hover"
+                }`}
+              >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 ${selectedIds.has(b.id) ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30"}`}>
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 ${
+                      selectedIds.has(b.id) ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/30"
+                    }`}>
                       {selectedIds.has(b.id) && <span className="text-xs">✓</span>}
                     </div>
                     <Factory className="w-5 h-5 text-primary" />
                     <div>
                       <p className="text-sm font-semibold text-foreground font-mono">{b.batch_code}</p>
                       <p className="text-[11px] text-muted-foreground">
-                        {getFactoryName(b.factory_id)} · <span className={`px-1.5 py-0.5 rounded-full ${stageLabels[b.stage]?.color || ""}`}>{stageLabels[b.stage]?.[lang] || b.stage}</span>
-                        {' '}<span className={`px-1.5 py-0.5 rounded-full ${b.status === "complete" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>{b.status === "complete" ? t("complete") : t("inProgress")}</span>
+                        {getFactoryName(b.factory_id)} ·{" "}
+                        <span className={`px-1.5 py-0.5 rounded-full ${stageColors[b.stage] || ""}`}>
+                          {stageLabels[b.stage]?.[lang] || b.stage}
+                        </span>
+                        {" "}
+                        <span className={`px-1.5 py-0.5 rounded-full ${b.status === "complete" ? "bg-success/15 text-success" : "bg-warning/15 text-warning"}`}>
+                          {b.status === "complete" ? t("complete") : t("inProgress")}
+                        </span>
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
-                    {can_edit && <button onClick={(ev) => { ev.stopPropagation(); handleEdit(b); }} title="Edit" aria-label="Edit batch" className="p-1 rounded hover:bg-secondary"><Pencil className="w-4 h-4 text-muted-foreground" /></button>}
-                    {can_delete && <button onClick={(ev) => { ev.stopPropagation(); handleDelete(b.id); }} title="Delete" aria-label="Delete batch" className="p-1 rounded hover:bg-destructive/10"><Trash2 className="w-4 h-4 text-destructive/70" /></button>}
+                    {can_edit && (
+                      <button type="button" onClick={(ev) => { ev.stopPropagation(); handleEdit(b); }} aria-label={t("edit")} className="btn-icon">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                    {can_delete && (
+                      <button type="button" onClick={(ev) => { ev.stopPropagation(); handleDelete(b.id); }} aria-label={t("delete")} className="btn-icon text-destructive hover:bg-destructive/10">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Detail table */}
                 <table className="w-full text-sm mb-3">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left text-xs text-muted-foreground font-medium py-2 pr-3">{t("inputWeight")}</th>
-                      <th className="text-right text-xs text-muted-foreground font-medium py-2 pr-3">{t("outputWeight")}</th>
-                      <th className="text-right text-xs text-muted-foreground font-medium py-2 pr-3">{t("lossWeight")}</th>
-                      <th className="text-right text-xs text-muted-foreground font-medium py-2">{t("efficiency")}</th>
+                      <th className="table-header-cell text-left">{t("inputWeight")}</th>
+                      <th className="table-header-cell text-right">{t("outputWeight")}</th>
+                      <th className="table-header-cell text-right">{t("lossWeight")}</th>
+                      <th className="table-header-cell text-right">{t("efficiency")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr className="border-b border-border/30">
-                      <td className="py-2 pr-3 text-xs font-medium text-foreground">{b.input_weight_kg} KG</td>
-                      <td className="py-2 pr-3 text-xs text-right text-success">{b.output_weight_kg ? `${b.output_weight_kg} KG` : "—"}</td>
-                      <td className="py-2 pr-3 text-xs text-right text-destructive">{b.loss_kg ? `${b.loss_kg} KG` : "—"}</td>
-                      <td className="py-2 text-xs text-right font-medium text-foreground">{b.efficiency_pct ? `${b.efficiency_pct}%` : "—"}</td>
+                      <td className="table-cell font-medium">{b.input_weight_kg} KG</td>
+                      <td className="table-cell text-right text-success">{b.output_weight_kg ? `${b.output_weight_kg} KG` : "—"}</td>
+                      <td className="table-cell text-right text-destructive">{b.loss_kg ? `${b.loss_kg} KG` : "—"}</td>
+                      <td className="table-cell text-right font-medium">{b.efficiency_pct ? `${b.efficiency_pct}%` : "—"}</td>
                     </tr>
                   </tbody>
                 </table>
