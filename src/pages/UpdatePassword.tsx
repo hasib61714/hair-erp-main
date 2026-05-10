@@ -9,33 +9,25 @@ const UpdatePassword = () => {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [showConfirmPw, setShowConfirmPw] = useState(false);
   const navigate = useNavigate();
   const { settings } = useCompanySettings();
 
-  // Supabase puts access_token in the URL hash — wait for auth session to be set
+  // Parse token from URL hash and set session directly — much faster than waiting for onAuthStateChange
   useEffect(() => {
-    // 1. Check if URL hash has type=recovery (token already in URL)
-    const hash = window.location.hash;
-    if (hash.includes("type=recovery") || hash.includes("access_token")) {
-      setReady(true);
-      return;
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+
+    if (accessToken && refreshToken) {
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(() => setSessionReady(true));
+    } else {
+      setSessionReady(true);
     }
-
-    // 2. Check existing session
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-    });
-
-    // 3. Listen for PASSWORD_RECOVERY event as fallback
-    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
-        setReady(true);
-      }
-    });
-    return () => listener.subscription.unsubscribe();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,13 +72,7 @@ const UpdatePassword = () => {
             <h2 className="text-lg font-semibold text-foreground">নতুন পাসওয়ার্ড দিন</h2>
           </div>
 
-          {!ready ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-primary" />
-              লিংক যাচাই হচ্ছে...
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="text-xs text-muted-foreground mb-1.5 block">নতুন পাসওয়ার্ড</label>
                 <div className="relative">
@@ -123,14 +109,19 @@ const UpdatePassword = () => {
               </div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !sessionReady}
                 className="w-full h-10 rounded-lg bg-gradient-gold text-primary-foreground font-medium text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-60"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+                {loading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> পাসওয়ার্ড পরিবর্তন হচ্ছে...</>
+                ) : !sessionReady ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> সংযোগ হচ্ছে...</>
+                ) : (
+                  <><KeyRound className="w-4 h-4" /> পাসওয়ার্ড পরিবর্তন করুন</>
+                )}
                 পাসওয়ার্ড পরিবর্তন করুন
               </button>
             </form>
-          )}
         </div>
       </div>
     </div>
