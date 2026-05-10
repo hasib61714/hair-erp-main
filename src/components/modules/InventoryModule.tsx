@@ -35,12 +35,15 @@ const PRODUCT_BADGE: Record<string, string> = {
 };
 
 // ── Data fetching ──────────────────────────────────────────────────
-const fetchInventory = async () => {
+const fetchInventory = async (): Promise<{ inventory: InventoryRow[]; factories: FactoryRow[] }> => {
   const [{ data: inv }, { data: facs }] = await Promise.all([
     supabase.from("inventory").select("*").order("grade"),
     supabase.from("factories").select("id, name, location, factory_type"),
   ]);
-  return { inventory: inv ?? [], factories: facs ?? [] };
+  return {
+    inventory: (inv ?? []) as unknown as InventoryRow[],
+    factories: (facs ?? []) as unknown as FactoryRow[],
+  };
 };
 
 // ── Add entry form ─────────────────────────────────────────────────
@@ -76,7 +79,7 @@ const AddEntryForm = ({
             grade: r.grade, stock_kg: parseFloat(r.kg) || 0,
             rate_per_kg: parseFloat(r.rate) || 0,
             factory_id: newFactory || null, product_type: productType,
-          }))
+          })) as never
         );
         if (error) { toast.error(error.message); return; }
       } else {
@@ -85,7 +88,7 @@ const AddEntryForm = ({
           grade: newGrade.trim(), stock_kg: parseFloat(newStock) || 0,
           rate_per_kg: parseFloat(newRate) || 0,
           factory_id: newFactory || null, product_type: productType,
-        });
+        } as never);
         if (error) { toast.error(error.message); return; }
       }
       toast.success(t("saved"));
@@ -284,10 +287,9 @@ const InventoryModule = () => {
 
   const handleSave = async () => {
     if (!editId) return;
-    const { error } = await supabase.from("inventory").update({
-      stock_kg: parseFloat(editStock) || 0,
-      rate_per_kg: parseFloat(editRate) || 0,
-    }).eq("id", editId);
+    const { error } = await supabase.from("inventory")
+      .update({ stock_kg: parseFloat(editStock) || 0, rate_per_kg: parseFloat(editRate) || 0 } as never)
+      .eq("id" as never, editId as never);
     if (error) { toast.error(error.message); return; }
     toast.success(t("saved"));
     setEditId(null);
@@ -295,7 +297,7 @@ const InventoryModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("inventory").delete().eq("id", id);
+    const { error } = await supabase.from("inventory").delete().eq("id" as never, id as never);
     if (error) { toast.error(error.message); return; }
     toast.success(t("deleted") || "Deleted");
     refresh();
@@ -303,7 +305,7 @@ const InventoryModule = () => {
 
   const handleFactoryNameSave = async () => {
     if (!editFactoryId || !editFactoryName.trim()) return;
-    const { error } = await supabase.from("factories").update({ name: editFactoryName.trim() }).eq("id", editFactoryId);
+    const { error } = await supabase.from("factories").update({ name: editFactoryName.trim() } as never).eq("id" as never, editFactoryId as never);
     if (error) { toast.error(error.message); return; }
     toast.success(t("saved"));
     setEditFactoryId(null);
