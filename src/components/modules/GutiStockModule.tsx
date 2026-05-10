@@ -107,10 +107,10 @@ const GutiStockModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!(await confirm("নিশ্চিত করুন — এই এন্ট্রি মুছে ফেলা হবে?"))) return;
+    if (!(await confirm(t("confirmDeleteItem")))) return;
     const { error } = await supabase.from("guti_stock").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("ডিলিট হয়েছে"); fetchData();
+    toast.success(t("deleted")); fetchData();
   };
 
   const getFactoryName = (id: string | null) => factories.find(f => f.id === id)?.name || "—";

@@ -93,7 +93,7 @@ const FactorySummary = () => {
                   </div>
                 </div>
                 <span className={`flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                  f.is_active ? "bg-success/12 text-success" : "bg-muted text-muted-foreground"
+                  f.is_active ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
                 }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${f.is_active ? "bg-success animate-pulse" : "bg-muted-foreground"}`} />
                   {f.is_active ? "Active" : "Inactive"}

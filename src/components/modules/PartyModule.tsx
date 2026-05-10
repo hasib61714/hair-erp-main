@@ -145,10 +145,10 @@ const PartyModule = () => {
   };
 
   const handleDeleteConsignment = async (id: string) => {
-    if (!(await confirm("নিশ্চিত করুন — এই কনসাইনমেন্ট মুছে ফেলা হবে?"))) return;
+    if (!(await confirm(t("confirmDeleteItem")))) return;
     const { error } = await supabase.from("party_consignments").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("ডিলিট হয়েছে"); fetchConsignments();
+    toast.success(t("deleted")); fetchConsignments();
   };
 
   const handleEditConsignment = (c: Consignment) => {
@@ -178,13 +178,13 @@ const PartyModule = () => {
       total_returned_kg: totalReturned, status: newStatus
     }).eq("id", consignmentId);
 
-    toast.success("ফেরত যোগ হয়েছে");
+    toast.success(t("saved"));
     setShowReturnForm(null); setRReturnKg(""); setRReturnDate(new Date().toISOString().split("T")[0]); setRNotes("");
     fetchConsignments();
   };
 
   const handleDeleteReturn = async (returnId: string, consignmentId: string) => {
-    if (!(await confirm("এই ফেরত ব্যাচ মুছে ফেলবেন?"))) return;
+    if (!(await confirm(t("confirmDeleteItem")))) return;
     const { error } = await supabase.from("party_returns").delete().eq("id", returnId);
     if (error) { toast.error(error.message); return; }
 
@@ -195,7 +195,7 @@ const PartyModule = () => {
     const newStatus = totalReturned <= 0 ? "sent" : totalReturned >= (c?.sent_kg || 0) ? "completed" : "partial_received";
     await supabase.from("party_consignments").update({ total_returned_kg: totalReturned, status: newStatus }).eq("id", consignmentId);
 
-    toast.success("ডিলিট হয়েছে"); fetchConsignments();
+    toast.success(t("deleted")); fetchConsignments();
   };
 
   // Settlement CRUD
@@ -249,10 +249,10 @@ const PartyModule = () => {
   };
 
   const handleDeleteSettlement = async (id: string) => {
-    if (!(await confirm("নিশ্চিত করুন — এই সেটেলমেন্ট মুছে ফেলা হবে?"))) return;
+    if (!(await confirm(t("confirmDeleteItem")))) return;
     const { error } = await supabase.from("party_settlements").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("ডিলিট হয়েছে"); fetchSettlements();
+    toast.success(t("deleted")); fetchSettlements();
   };
 
   const toggleSettlementPaid = async (s: Settlement) => {
@@ -260,7 +260,7 @@ const PartyModule = () => {
     const { error } = await (supabase.from("party_settlements") as any).update({ is_paid: newVal }).eq("id", s.id);
     if (error) { toast.error(error.message); return; }
     setSettlements(prev => prev.map(x => x.id === s.id ? { ...x, is_paid: newVal } : x));
-    toast.success(newVal ? "PAID সিল দেওয়া হয়েছে" : "PAID সিল সরানো হয়েছে");
+    toast.success(t("saved"));
   };
 
   // Print settlement invoice (party view - no buyer rate)

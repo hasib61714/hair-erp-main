@@ -87,10 +87,10 @@ const TransferModule = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!(await confirm("নিশ্চিত করুন — এই ট্রান্সফার মুছে ফেলা হবে?"))) return;
+    if (!(await confirm(t("confirmDeleteItem")))) return;
     const { error } = await supabase.from("transfers").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("ডিলিট হয়েছে"); fetchData();
+    toast.success(t("deleted")); fetchData();
   };
 
   const getName = (id: string | null) => factories.find(f => f.id === id)?.name || "—";

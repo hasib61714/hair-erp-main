@@ -13,9 +13,9 @@ interface StatsCardProps {
 
 const variantStyles = {
   default:  { border: "border-border",          icon: "bg-secondary text-secondary-foreground",  accent: "" },
-  gold:     { border: "border-primary/25",       icon: "bg-primary/12 text-primary",              accent: "text-primary" },
-  success:  { border: "border-success/25",       icon: "bg-success/12 text-success",              accent: "text-success" },
-  info:     { border: "border-info/25",          icon: "bg-info/12 text-info",                    accent: "text-info" },
+  gold:     { border: "border-primary/25",       icon: "bg-primary/10 text-primary",              accent: "text-primary" },
+  success:  { border: "border-success/25",       icon: "bg-success/10 text-success",              accent: "text-success" },
+  info:     { border: "border-info/25",          icon: "bg-info/10 text-info",                    accent: "text-info" },
   danger:   { border: "border-destructive/25",   icon: "bg-destructive/10 text-destructive",      accent: "text-destructive" },
 };
 
@@ -60,8 +60,8 @@ const StatsCard = ({
             className={cn(
               "inline-flex items-center gap-0.5 text-[11px] font-semibold px-2 py-0.5 rounded-full",
               trend.positive
-                ? "bg-success/12 text-success"
-                : "bg-destructive/12 text-destructive"
+                ? "bg-success/10 text-success"
+                : "bg-destructive/10 text-destructive"
             )}
           >
             {trend.positive
